@@ -8,13 +8,11 @@ def fib(x)
     return fib(x - 1) + fib(x - 2);
 end
 
-def fibseq(x)
-    while(x >= 0)
-        print(fib(x));
-        let x = x - 1;
-    end
-end
-
 def main()
-    fibseq(10);
+    let x = 0;
+    while(x < 10)
+        print(fib(x));
+        let x = x + 1;
+    end
+    return x;
 end
