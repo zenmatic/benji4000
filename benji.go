@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/uzudil/bscript"
+	"github.com/uzudil/benji4000/bscript"
 )
 
 func main() {
@@ -20,7 +20,7 @@ func main() {
 	defer r.Close()
 
 	ast := &bscript.Program{}
-	bscript.parser.Parse(r, ast)
+	bscript.Parser.Parse(r, ast)
 
 	// print the ast
 	// fmt.Println(">>>>>>>>>>>>>>>>>>>>>>>>>>")

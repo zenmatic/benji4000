@@ -137,7 +137,7 @@ var (
 		any = "\u0000"…"\uffff" .
 	`))
 
-	parser = participle.MustBuild(&Program{},
+	Parser = participle.MustBuild(&Program{},
 		participle.Lexer(benjiLexer),
 		participle.CaseInsensitive("Ident"),
 		participle.Unquote("String"),
