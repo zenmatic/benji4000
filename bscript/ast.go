@@ -28,7 +28,23 @@ type Command struct {
 	Remark *Remark `(   @@ `
 	Let    *Let    `  | @@ ";" `
 	Return *Return `  | @@ ";" `
+	If     *If     `  | @@ `
+	While  *While  `  | @@ `
 	Call   *Call   `  | @@ ";" )`
+}
+
+type While struct {
+	Pos lexer.Position
+
+	Condition *Expression `"while" "(" @@ ")"`
+	Commands  []*Command  `( @@ )* "end"`
+}
+
+type If struct {
+	Pos lexer.Position
+
+	Condition *Expression `"if" "(" @@ ")"`
+	Commands  []*Command  `( @@ )* "end"`
 }
 
 type Remark struct {

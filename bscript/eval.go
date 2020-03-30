@@ -9,16 +9,26 @@ import (
 	"fmt"
 )
 
+const STACK_LIMIT = 1000
+
 type Evaluatable interface {
 	Evaluate(ctx *Context) (interface{}, error)
 }
 
 type Function func(args ...interface{}) (interface{}, error)
 
+type ContextLevel struct {
+	Function string
+	Vars     map[string]interface{}
+}
+
 // Context for evaluation.
 type Context struct {
+	Stack []ContextLevel
 	// User-provided functions.
 	Functions map[string]Function
+	// The current function's name
+	Function string
 	// Vars defined during evaluation.
 	Vars map[string]interface{}
 	// defined functions
@@ -34,7 +44,7 @@ func (v *Value) Evaluate(ctx *Context) (interface{}, error) {
 	case v.Variable != nil:
 		value, ok := ctx.Vars[*v.Variable]
 		if !ok {
-			return nil, fmt.Errorf("unknown variable %q", *v.Variable)
+			return nil, lexer.Errorf(v.Pos, "unknown variable %q", *v.Variable)
 		}
 		return value, nil
 	case v.Subexpression != nil:
@@ -183,6 +193,16 @@ func (e *Expression) Evaluate(ctx *Context) (interface{}, error) {
 	return lhs, nil
 }
 
+func (ctx *Context) debug(message string) {
+	fmt.Println("====================================")
+	fmt.Println(message)
+	repr.Println(ctx.Stack)
+	fmt.Println("------------------------------------")
+	repr.Println(ctx.Function)
+	repr.Println(ctx.Vars)
+	fmt.Println("====================================")
+}
+
 func (c *Call) Evaluate(ctx *Context) (interface{}, error) {
 
 	args := []interface{}{}
@@ -206,10 +226,31 @@ func (c *Call) Evaluate(ctx *Context) (interface{}, error) {
 
 		value, err := function(args...)
 		if err != nil {
-			return nil, lexer.Errorf(c.Pos, "call to %s() failed", c.Name)
+			fmt.Println(err)
+			ctx.debug("Failed to call function")
+			panic(lexer.Errorf(c.Pos, "call to %s() failed", c.Name))
 		}
 		return value, nil
 	}
+
+	if len(ctx.Stack) > STACK_LIMIT {
+		panic("Stack limit exceeded")
+	}
+
+	// push a variable context
+	newVars := map[string]interface{}{}
+	for k, v := range ctx.Vars {
+		newVars[k] = v
+	}
+	ctx.Stack = append(ctx.Stack, ContextLevel{
+		Function: ctx.Function,
+		Vars:     newVars,
+	})
+	// clear the variables
+	ctx.Vars = map[string]interface{}{}
+	ctx.Function = c.Name
+
+	// ctx.debug(fmt.Sprintf("BEFORE call to %s", c.Name))
 
 	// push the function params
 	if len(fun.Params) != len(args) {
@@ -223,43 +264,108 @@ func (c *Call) Evaluate(ctx *Context) (interface{}, error) {
 	// fmt.Println("Calling def", c.Name)
 	value, err := fun.Evaluate(ctx)
 	if err != nil {
-		return nil, lexer.Errorf(c.Pos, "call to %s() failed", c.Name)
+		fmt.Println(err)
+		ctx.debug("Failed to call function")
+		panic(lexer.Errorf(c.Pos, "call to %s() failed", c.Name))
 	}
+
+	// pop  the stack and restore Vars
+	ctx.Function = ctx.Stack[len(ctx.Stack)-1].Function
+	ctx.Vars = map[string]interface{}{}
+	for k, v := range ctx.Stack[len(ctx.Stack)-1].Vars {
+		ctx.Vars[k] = v
+	}
+	ctx.Stack = ctx.Stack[:len(ctx.Stack)-1]
+	// ctx.debug(fmt.Sprintf("AFTER call to %s", c.Name))
+
 	return value, err
 
 }
 
-func (fun *Fun) Evaluate(ctx *Context) (interface{}, error) {
-	// fmt.Println("Running function:", fun.Name)
-	for index := 0; index < len(fun.Commands); {
-		cmd := fun.Commands[index]
-		switch {
-		case cmd.Remark != nil:
+func (cmd *Command) Evaluate(ctx *Context) (interface{}, error) {
+	switch {
+	case cmd.Remark != nil:
 
-		case cmd.Let != nil:
-			cmd := cmd.Let
-			value, err := cmd.Value.Evaluate(ctx)
-			if err != nil {
-				return nil, err
-			}
-			ctx.Vars[cmd.Variable] = value
-		case cmd.Return != nil:
-			cmd := cmd.Return
-			value, err := cmd.Value.Evaluate(ctx)
-			return value, err
-		case cmd.Call != nil:
-			_, err := cmd.Call.Evaluate(ctx)
-			if err != nil {
-				return nil, err
-			}
-
-		default:
-			panic("unsupported command " + repr.String(cmd))
+	case cmd.Let != nil:
+		cmd := cmd.Let
+		value, err := cmd.Value.Evaluate(ctx)
+		if err != nil {
+			return nil, err
 		}
+		ctx.Vars[cmd.Variable] = value
+	case cmd.Return != nil:
+		cmd := cmd.Return
+		value, err := cmd.Value.Evaluate(ctx)
+		return value, err
+	case cmd.Call != nil:
+		_, err := cmd.Call.Evaluate(ctx)
+		if err != nil {
+			return nil, err
+		}
+	case cmd.If != nil:
+		value, err := cmd.If.Evaluate(ctx)
+		return value, err
+	case cmd.While != nil:
+		value, err := cmd.While.Evaluate(ctx)
+		return value, err
+	default:
+		panic("unsupported command " + repr.String(cmd))
+	}
+	return nil, nil
+}
 
+func evalBlock(ctx *Context, commands []*Command) (interface{}, error) {
+	for index := 0; index < len(commands); {
+		cmd := commands[index]
+		value, err := cmd.Evaluate(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if value != nil {
+			return value, nil
+		}
 		index++
 	}
 	return nil, nil
+}
+
+func (whilecommand *While) Evaluate(ctx *Context) (interface{}, error) {
+	for {
+		value, err := whilecommand.Condition.Evaluate(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		if value != true {
+			return nil, nil
+		}
+
+		value, err = evalBlock(ctx, whilecommand.Commands)
+		if err != nil {
+			return nil, err
+		}
+		if value != nil {
+			return value, err
+		}
+	}
+}
+
+func (ifcommand *If) Evaluate(ctx *Context) (interface{}, error) {
+	value, err := ifcommand.Condition.Evaluate(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if value == true {
+		return evalBlock(ctx, ifcommand.Commands)
+	} else {
+		return nil, nil
+	}
+}
+
+func (fun *Fun) Evaluate(ctx *Context) (interface{}, error) {
+	// fmt.Println("Running function:", fun.Name)
+	return evalBlock(ctx, fun.Commands)
 }
 
 func (program *Program) Evaluate() error {
@@ -268,7 +374,9 @@ func (program *Program) Evaluate() error {
 	}
 
 	ctx := &Context{
-		Vars: map[string]interface{}{},
+		Stack:    []ContextLevel{},
+		Vars:     map[string]interface{}{},
+		Function: "main",
 		Functions: map[string]Function{
 			"print": func(arg ...interface{}) (interface{}, error) {
 				fmt.Println(arg[0])
