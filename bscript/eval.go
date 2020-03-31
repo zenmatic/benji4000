@@ -136,6 +136,14 @@ func (t *Term) Evaluate(ctx *Context) (interface{}, error) {
 func (o *OpTerm) Evaluate(ctx *Context, lhs interface{}) (interface{}, error) {
 	lhsNumber, rhsNumber, err := evaluateFloats(ctx, lhs, o.Term)
 	if err != nil {
+		if o.Operator == "+" {
+			// special handling for string concat
+			lhsStr, rhsStr, err := evaluateStrings(ctx, lhs, o.Term)
+			if err != nil {
+				return nil, lexer.Errorf(o.Pos, "invalid arguments for %s: %s", o.Operator, err)
+			}
+			return lhsStr + rhsStr, nil
+		}
 		return nil, lexer.Errorf(o.Pos, "invalid arguments for %s: %s", o.Operator, err)
 	}
 	switch o.Operator {
@@ -485,4 +493,12 @@ func evaluateFloats(ctx *Context, lhs interface{}, rhsExpr Evaluatable) (float64
 		return 0, 0, fmt.Errorf("rhs must be a number")
 	}
 	return lhsNumber, rhsNumber, nil
+}
+
+func evaluateStrings(ctx *Context, lhs interface{}, rhsExpr Evaluatable) (string, string, error) {
+	rhs, err := rhsExpr.Evaluate(ctx)
+	if err != nil {
+		return "", "", err
+	}
+	return fmt.Sprintf("%v", lhs), fmt.Sprintf("%v", rhs), nil
 }

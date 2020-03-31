@@ -63,9 +63,9 @@ type Call struct {
 type Let struct {
 	Pos lexer.Position
 
-	ArrayElement *ArrayElement `"let" ( @@ `
+	ArrayElement *ArrayElement `( @@ `
 	Variable     *string       `| @Ident )`
-	Value        *Expression   `"=" @@`
+	Value        *Expression   `":" "=" @@`
 }
 
 type Return struct {

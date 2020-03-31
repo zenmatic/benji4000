@@ -9,10 +9,10 @@ def fib(x)
 end
 
 def main()
-    let x = 0;
+    x := 0;
     while(x < 10)
-        print(fib(x));
-        let x = x + 1;
+        print("at " + x + " fib=" + fib(x));
+        x := x + 1;
     end
     return x;
 end
