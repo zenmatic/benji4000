@@ -27,10 +27,17 @@ type Command struct {
 
 	Remark *Remark `(   @@ `
 	Let    *Let    `  | @@ ";" `
+	Del    *Del    `  | @@ ";" `
 	Return *Return `  | @@ ";" `
 	If     *If     `  | @@ `
 	While  *While  `  | @@ `
 	Call   *Call   `  | @@ ";" )`
+}
+
+type Del struct {
+	Pos lexer.Position
+
+	ArrayElement *ArrayElement `"del" @@`
 }
 
 type While struct {

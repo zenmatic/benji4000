@@ -348,12 +348,39 @@ func (cmd *Command) Evaluate(ctx *Context) (interface{}, error) {
 				return nil, err
 			}
 			index := (int)(ivalue.(float64))
+			if index < 0 || index > len(a) {
+				return nil, lexer.Errorf(cmd.Pos, "Index out of bounds for %s", cmd.ArrayElement.Name)
+			}
+			if index == len(a) {
+				ctx.Vars[cmd.ArrayElement.Name] = append(a, value)
+			} else {
+				a[index] = value
+			}
+		} else {
+			return nil, lexer.Errorf(cmd.Pos, "Let needs a variable or array element on the LHS.")
+		}
+	case cmd.Del != nil:
+		cmd := cmd.Del
+		if cmd.ArrayElement != nil {
+			avalue, ok := ctx.Vars[cmd.ArrayElement.Name]
+			if !ok {
+				return nil, lexer.Errorf(cmd.Pos, "Unknown variable %s", cmd.ArrayElement.Name)
+			}
+			a := avalue.([]interface{})
+
+			ivalue, err := cmd.ArrayElement.Index.Evaluate(ctx)
+			if err != nil {
+				return nil, err
+			}
+			index := (int)(ivalue.(float64))
 			if index < 0 || index >= len(a) {
 				return nil, lexer.Errorf(cmd.Pos, "Index out of bounds for %s", cmd.ArrayElement.Name)
 			}
-			a[index] = value
+
+			ctx.Vars[cmd.ArrayElement.Name] = append(a[:index], a[index+1:]...)
 		} else {
-			return nil, lexer.Errorf(cmd.Pos, "Let needs a variable or array element on the LHS.")
+			// in the future, del can take other types (map, maybe struct, etc)
+			return nil, lexer.Errorf(cmd.Pos, "can't delete this type of expression")
 		}
 	case cmd.Return != nil:
 		cmd := cmd.Return
@@ -444,6 +471,13 @@ func (program *Program) Evaluate() error {
 			"print": func(arg ...interface{}) (interface{}, error) {
 				fmt.Println(arg[0])
 				return nil, nil
+			},
+			"len": func(arg ...interface{}) (interface{}, error) {
+				a, ok := arg[0].([]interface{})
+				if !ok {
+					return nil, fmt.Errorf("argument to len() should be an array")
+				}
+				return float64(len(a)), nil
 			},
 		},
 		Defs: map[string]*Fun{},
