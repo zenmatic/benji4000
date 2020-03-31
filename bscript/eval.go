@@ -39,6 +39,40 @@ func (v *Value) Evaluate(ctx *Context) (interface{}, error) {
 	switch {
 	case v.Number != nil:
 		return *v.Number, nil
+	case v.Array != nil:
+		a := []interface{}{}
+		if v.Array.LeftValue != nil {
+			value, err := v.Array.LeftValue.Evaluate(ctx)
+			if err != nil {
+				return value, err
+			}
+			a = append(a, value)
+			for i := 0; i < len(v.Array.RightValues); i++ {
+				value, err := v.Array.RightValues[i].Evaluate(ctx)
+				if err != nil {
+					return value, err
+				}
+				a = append(a, value)
+			}
+		}
+		return a, nil
+	case v.ArrayElement != nil:
+		value, ok := ctx.Vars[v.ArrayElement.Name]
+		if !ok {
+			return nil, lexer.Errorf(v.Pos, "unknown variable %s", v.ArrayElement.Name)
+		}
+		a := value.([]interface{})
+
+		ivalue, err := v.ArrayElement.Index.Evaluate(ctx)
+		if err != nil {
+			return nil, err
+		}
+		index := (int)(ivalue.(float64))
+		if index < 0 || index >= len(a) {
+			return nil, lexer.Errorf(v.Pos, "Index out of bounds for %s", v.ArrayElement.Name)
+		}
+
+		return a[index], nil
 	case v.String != nil:
 		return *v.String, nil
 	case v.Variable != nil:
@@ -292,7 +326,27 @@ func (cmd *Command) Evaluate(ctx *Context) (interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-		ctx.Vars[cmd.Variable] = value
+		if cmd.Variable != nil {
+			ctx.Vars[*cmd.Variable] = value
+		} else if cmd.ArrayElement != nil {
+			avalue, ok := ctx.Vars[cmd.ArrayElement.Name]
+			if !ok {
+				return nil, lexer.Errorf(cmd.Pos, "Unknown variable %s", cmd.ArrayElement.Name)
+			}
+			a := avalue.([]interface{})
+
+			ivalue, err := cmd.ArrayElement.Index.Evaluate(ctx)
+			if err != nil {
+				return nil, err
+			}
+			index := (int)(ivalue.(float64))
+			if index < 0 || index >= len(a) {
+				return nil, lexer.Errorf(cmd.Pos, "Index out of bounds for %s", cmd.ArrayElement.Name)
+			}
+			a[index] = value
+		} else {
+			return nil, lexer.Errorf(cmd.Pos, "Let needs a variable or array element on the LHS.")
+		}
 	case cmd.Return != nil:
 		cmd := cmd.Return
 		value, err := cmd.Value.Evaluate(ctx)
@@ -324,6 +378,7 @@ func evalBlock(ctx *Context, commands []*Command) (interface{}, error) {
 		if value != nil {
 			return value, nil
 		}
+		// ctx.debug("debug")
 		index++
 	}
 	return nil, nil
@@ -404,6 +459,7 @@ func (program *Program) Evaluate() error {
 
 	value, err := main.Evaluate(ctx)
 	if err != nil {
+		ctx.debug("Main error")
 		return err
 	}
 	fmt.Println("Final program value: ", value)

@@ -63,8 +63,9 @@ type Call struct {
 type Let struct {
 	Pos lexer.Position
 
-	Variable string      `"let" @Ident`
-	Value    *Expression `"=" @@`
+	ArrayElement *ArrayElement `"let" ( @@ `
+	Variable     *string       `| @Ident )`
+	Value        *Expression   `"=" @@`
 }
 
 type Return struct {
@@ -83,11 +84,27 @@ func (o *Operator) Capture(s []string) error {
 type Value struct {
 	Pos lexer.Position
 
-	Number        *float64    `  @Number`
-	Call          *Call       `| @@`
-	Variable      *string     `| @Ident`
-	String        *string     `| @String`
-	Subexpression *Expression `| "(" @@ ")"`
+	Array         *Array        ` @@`
+	Number        *float64      `| @Number`
+	Call          *Call         `| @@`
+	ArrayElement  *ArrayElement `| @@`
+	Variable      *string       `| @Ident`
+	String        *string       `| @String`
+	Subexpression *Expression   `| "(" @@ ")"`
+}
+
+type ArrayElement struct {
+	Pos lexer.Position
+
+	Name  string      `@Ident "["`
+	Index *Expression `@@ "]"`
+}
+
+type Array struct {
+	Pos lexer.Position
+
+	LeftValue   *Value   `"[" @@*`
+	RightValues []*Value `( "," @@ )* "]"`
 }
 
 type Factor struct {
