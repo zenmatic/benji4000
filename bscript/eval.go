@@ -6,7 +6,10 @@ import (
 	"github.com/alecthomas/participle/lexer"
 	"github.com/alecthomas/repr"
 
+	"bufio"
 	"fmt"
+	"os"
+	"strings"
 )
 
 const STACK_LIMIT = 1000
@@ -31,6 +34,10 @@ type Context struct {
 	Function string
 	// Vars defined during evaluation.
 	Vars map[string]interface{}
+	// Global variables
+	Globals map[string]interface{}
+	// top level constants
+	Consts map[string]interface{}
 	// defined functions
 	Defs map[string]*Fun
 }
@@ -81,7 +88,13 @@ func (v *Value) Evaluate(ctx *Context) (interface{}, error) {
 
 		value, ok := ctx.Vars[v.ArrayElement.Name]
 		if !ok {
-			return nil, lexer.Errorf(v.Pos, "unknown variable %s", v.ArrayElement.Name)
+			value, ok = ctx.Consts[v.ArrayElement.Name]
+			if !ok {
+				value, ok = ctx.Globals[v.ArrayElement.Name]
+				if !ok {
+					return nil, lexer.Errorf(v.Pos, "unknown variable %s", v.ArrayElement.Name)
+				}
+			}
 		}
 		a, ok := value.([]interface{})
 		if ok {
@@ -106,7 +119,13 @@ func (v *Value) Evaluate(ctx *Context) (interface{}, error) {
 	case v.Variable != nil:
 		value, ok := ctx.Vars[*v.Variable]
 		if !ok {
-			return nil, lexer.Errorf(v.Pos, "unknown variable %q", *v.Variable)
+			value, ok = ctx.Consts[*v.Variable]
+			if !ok {
+				value, ok = ctx.Globals[*v.Variable]
+				if !ok {
+					return nil, lexer.Errorf(v.Pos, "unknown variable %q", *v.Variable)
+				}
+			}
 		}
 		return value, nil
 	case v.Subexpression != nil:
@@ -266,10 +285,11 @@ func (e *Expression) Evaluate(ctx *Context) (interface{}, error) {
 func (ctx *Context) debug(message string) {
 	fmt.Println("====================================")
 	fmt.Println(message)
-	repr.Println(ctx.Stack)
+	fmt.Printf("Stack=%v\n", ctx.Stack)
 	fmt.Println("------------------------------------")
-	repr.Println(ctx.Function)
-	repr.Println(ctx.Vars)
+	fmt.Printf("Function=%s", ctx.Function)
+	fmt.Printf("Globals=%v\n", ctx.Globals)
+	fmt.Printf("Vars=%v\n", ctx.Vars)
 	fmt.Println("====================================")
 }
 
@@ -307,6 +327,10 @@ func (c *Call) Evaluate(ctx *Context) (interface{}, error) {
 		panic("Stack limit exceeded")
 	}
 
+	// update globals
+	for k := range ctx.Globals {
+		ctx.Globals[k] = ctx.Vars[k]
+	}
 	// push a variable context
 	newVars := map[string]interface{}{}
 	for k, v := range ctx.Vars {
@@ -318,6 +342,10 @@ func (c *Call) Evaluate(ctx *Context) (interface{}, error) {
 	})
 	// clear the variables
 	ctx.Vars = map[string]interface{}{}
+	// add the global vars
+	for k, v := range ctx.Globals {
+		ctx.Vars[k] = v
+	}
 	ctx.Function = c.Name
 
 	// ctx.debug(fmt.Sprintf("BEFORE call to %s", c.Name))
@@ -339,11 +367,19 @@ func (c *Call) Evaluate(ctx *Context) (interface{}, error) {
 		panic(lexer.Errorf(c.Pos, "call to %s() failed", c.Name))
 	}
 
+	// update globals
+	for k := range ctx.Globals {
+		ctx.Globals[k] = ctx.Vars[k]
+	}
 	// pop  the stack and restore Vars
 	ctx.Function = ctx.Stack[len(ctx.Stack)-1].Function
 	ctx.Vars = map[string]interface{}{}
 	for k, v := range ctx.Stack[len(ctx.Stack)-1].Vars {
 		ctx.Vars[k] = v
+	}
+	// update vars to globals
+	for k := range ctx.Globals {
+		ctx.Vars[k] = ctx.Globals[k]
 	}
 	ctx.Stack = ctx.Stack[:len(ctx.Stack)-1]
 	// ctx.debug(fmt.Sprintf("AFTER call to %s", c.Name))
@@ -352,52 +388,60 @@ func (c *Call) Evaluate(ctx *Context) (interface{}, error) {
 
 }
 
+func (cmd *Let) Evaluate(ctx *Context) (interface{}, error) {
+	value, err := cmd.Value.Evaluate(ctx)
+
+	if err != nil {
+		return nil, err
+	}
+	if cmd.Variable != nil {
+		ctx.Vars[*cmd.Variable] = value
+	} else if cmd.ArrayElement != nil {
+		ivalue, err := cmd.ArrayElement.Index.Evaluate(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		avalue, ok := ctx.Vars[cmd.ArrayElement.Name]
+		if !ok {
+			return nil, lexer.Errorf(cmd.Pos, "Unknown variable %s", cmd.ArrayElement.Name)
+		}
+		a, ok := avalue.([]interface{})
+		if ok {
+			// it's an array
+			index := (int)(ivalue.(float64))
+			if index < 0 || index > len(a) {
+				return nil, lexer.Errorf(cmd.Pos, "Index out of bounds for %s", cmd.ArrayElement.Name)
+			}
+			if index == len(a) {
+				ctx.Vars[cmd.ArrayElement.Name] = append(a, value)
+			} else {
+				a[index] = value
+			}
+		} else {
+			m, ok := avalue.(map[string]interface{})
+			if ok {
+				// it's a map
+				key := ivalue.(string)
+				m[key] = value
+			} else {
+				return nil, lexer.Errorf(cmd.Pos, "Array element references something other than an array or a map.")
+			}
+		}
+	} else {
+		return nil, lexer.Errorf(cmd.Pos, "Let needs a variable or array element on the LHS.")
+	}
+	return nil, nil
+}
+
 func (cmd *Command) Evaluate(ctx *Context) (interface{}, error) {
 	switch {
 	case cmd.Remark != nil:
 
 	case cmd.Let != nil:
-		cmd := cmd.Let
-		value, err := cmd.Value.Evaluate(ctx)
+		_, err := cmd.Let.Evaluate(ctx)
 		if err != nil {
 			return nil, err
-		}
-		if cmd.Variable != nil {
-			ctx.Vars[*cmd.Variable] = value
-		} else if cmd.ArrayElement != nil {
-			ivalue, err := cmd.ArrayElement.Index.Evaluate(ctx)
-			if err != nil {
-				return nil, err
-			}
-
-			avalue, ok := ctx.Vars[cmd.ArrayElement.Name]
-			if !ok {
-				return nil, lexer.Errorf(cmd.Pos, "Unknown variable %s", cmd.ArrayElement.Name)
-			}
-			a, ok := avalue.([]interface{})
-			if ok {
-				// it's an array
-				index := (int)(ivalue.(float64))
-				if index < 0 || index > len(a) {
-					return nil, lexer.Errorf(cmd.Pos, "Index out of bounds for %s", cmd.ArrayElement.Name)
-				}
-				if index == len(a) {
-					ctx.Vars[cmd.ArrayElement.Name] = append(a, value)
-				} else {
-					a[index] = value
-				}
-			} else {
-				m, ok := avalue.(map[string]interface{})
-				if ok {
-					// it's a map
-					key := ivalue.(string)
-					m[key] = value
-				} else {
-					return nil, lexer.Errorf(cmd.Pos, "Array element references something other than an array or a map.")
-				}
-			}
-		} else {
-			return nil, lexer.Errorf(cmd.Pos, "Let needs a variable or array element on the LHS.")
 		}
 	case cmd.Del != nil:
 		cmd := cmd.Del
@@ -515,12 +559,20 @@ func (program *Program) Evaluate() error {
 
 	ctx := &Context{
 		Stack:    []ContextLevel{},
+		Consts:   map[string]interface{}{},
 		Vars:     map[string]interface{}{},
-		Function: "main",
+		Globals:  map[string]interface{}{},
+		Function: "",
 		Functions: map[string]Function{
 			"print": func(arg ...interface{}) (interface{}, error) {
 				fmt.Println(arg[0])
 				return nil, nil
+			},
+			"input": func(arg ...interface{}) (interface{}, error) {
+				reader := bufio.NewReader(os.Stdin)
+				fmt.Print(arg[0])
+				text, err := reader.ReadString('\n')
+				return strings.TrimSpace(text), err
 			},
 			"len": func(arg ...interface{}) (interface{}, error) {
 				a, ok := arg[0].([]interface{})
@@ -552,6 +604,21 @@ func (program *Program) Evaluate() error {
 			if program.TopLevel[i].Fun.Name == "main" {
 				main = program.TopLevel[i].Fun
 			}
+		} else if program.TopLevel[i].Const != nil {
+			value, err := program.TopLevel[i].Const.Value.Evaluate(ctx)
+			if err != nil {
+				return err
+			}
+			ctx.Consts[program.TopLevel[i].Const.Name] = value
+		} else if program.TopLevel[i].Let != nil {
+			_, err := program.TopLevel[i].Let.Evaluate(ctx)
+			if err != nil {
+				return err
+			}
+			// now copy Vars to Globals
+			for k, v := range ctx.Vars {
+				ctx.Globals[k] = v
+			}
 		}
 	}
 	if main == nil {
@@ -562,12 +629,13 @@ func (program *Program) Evaluate() error {
 	// repr.Println(ctx)
 	// fmt.Println("======================================")
 
-	value, err := main.Evaluate(ctx)
+	ctx.Function = "main"
+	_, err := main.Evaluate(ctx)
 	if err != nil {
 		ctx.debug("Main error")
 		return err
 	}
-	fmt.Println("Final program value: ", value)
+	// fmt.Println("Final program value: ", value)
 
 	// fmt.Println("======================================")
 	// repr.Println(ctx.Vars)

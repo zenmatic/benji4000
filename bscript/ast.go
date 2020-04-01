@@ -18,7 +18,16 @@ type TopLevel struct {
 	Pos lexer.Position
 
 	Remark *Remark `(  @@ `
+	Let    *Let    `| @@ ";"`
+	Const  *Const  `| @@ ";"`
 	Fun    *Fun    `| @@ )`
+}
+
+type Const struct {
+	Pos lexer.Position
+
+	Name  string      `"const" @Ident`
+	Value *Expression `"=" @@`
 }
 
 type Fun struct {
