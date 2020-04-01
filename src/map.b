@@ -1,14 +1,14 @@
 # map demo
 
-def foo(m)
+def foo(m) {
     m["added in foo"] := "heck yeah";
-end
+}
 
-def make_map()
+def make_map() {
     return { "xxx": 123, "yyy": "zaza" };
-end
+}
 
-def main()
+def main() {
     # create a map
     map := { "a": 1, "b": 2, "c": 3 };
     print("map is " + map);
@@ -20,10 +20,10 @@ def main()
     # iterate the keys
     keys := keys(map);
     i := 0;
-    while(i < len(keys))
+    while(i < len(keys)) {
         print("i=" + i + " key=" + keys[i]);
         i := i + 1;
-    end
+    }
 
     # update same value
     map["b"] := map["b"] * 2;
@@ -48,4 +48,4 @@ def main()
     # return by reference
     new_map := make_map();
     print("new map created in a function: " + new_map);
-end
+}

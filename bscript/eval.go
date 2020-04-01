@@ -542,9 +542,8 @@ func (ifcommand *If) Evaluate(ctx *Context) (interface{}, error) {
 
 	if value == true {
 		return evalBlock(ctx, ifcommand.Commands)
-	} else {
-		return nil, nil
 	}
+	return evalBlock(ctx, ifcommand.ElseCommands)
 }
 
 func (fun *Fun) Evaluate(ctx *Context) (interface{}, error) {

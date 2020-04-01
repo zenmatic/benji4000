@@ -2,18 +2,18 @@
 # program to demo arrays
 
 # function modifies an array passed by reference
-def foo(list)
+def foo(list) {
     list[2] := 55;
-end
+}
 
 # creates an array (on the heap) and passes it back by reference
-def create_array()
+def create_array() {
     a := [ "abc", "def", "ghi" ];
     return a;
-end
+}
 
 # this where execution starts
-def main()
+def main() {
     # declare an array
     a := [ 1, 2, 3, 4, 5 ];
     
@@ -31,18 +31,18 @@ def main()
 
     # array element dynamic access
     i := 0;
-    while (i < len(a))
+    while (i < len(a)) {
         a[i] := a[i] * 2;
         i := i + 1;
-    end
+    }
     print("After dynamic access " + a);
 
     # append to an array by adding a new element at the end
     i := 0;
-    while(i < 3)
+    while(i < 3) {
         a[len(a)] := i;
         i := i + 1;
-    end
+    }
     print("After adding 3 elements " + a);
 
     # delete from array
@@ -59,4 +59,4 @@ def main()
     list := create_array();
     print("After create in function, a=" + a);
     print("After create in function, list=" + list);
-end
+}

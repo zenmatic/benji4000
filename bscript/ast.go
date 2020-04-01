@@ -35,7 +35,7 @@ type Fun struct {
 
 	Name     string     `"def" @Ident "("`
 	Params   []string   `( @Ident ( "," @Ident )* )*`
-	Commands []*Command `")" ( @@ )* "end"`
+	Commands []*Command `")" "{" ( @@ )* "}"`
 }
 
 type Command struct {
@@ -59,15 +59,16 @@ type Del struct {
 type While struct {
 	Pos lexer.Position
 
-	Condition *Expression `"while" "(" @@ ")"`
-	Commands  []*Command  `( @@ )* "end"`
+	Condition *Expression `"while" "(" @@ ")" "{"`
+	Commands  []*Command  `( @@ )* "}"`
 }
 
 type If struct {
 	Pos lexer.Position
 
-	Condition *Expression `"if" "(" @@ ")"`
-	Commands  []*Command  `( @@ )* "end"`
+	Condition    *Expression `"if" "(" @@ ")" "{"`
+	Commands     []*Command  `( @@ )* "}"`
+	ElseCommands []*Command  `( "else" "{" ( @@ )* "}" )?`
 }
 
 type Remark struct {

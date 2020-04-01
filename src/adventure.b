@@ -27,39 +27,38 @@ const DIRS = [ "n", "s", "e", "w" ];
 current_room := 0;
 
 # process a direction command and return the 1 if handled, 0 otherwise
-def direction_command(action)
+def direction_command(action) {
 
     # todo: we don't yet handle multidimensional arrays: MAP[current_room][0], etc.
     current_room_map := MAP[current_room];
 
     handled := 0;
     i := 0;
-    while(i < len(DIRS))
-        if(DIRS[i] = action)
+    while(i < len(DIRS)) {
+        if(DIRS[i] = action) {
             handled := 1;
             proposed_room := current_room_map[i];
-        end
+        }
         i := i + 1;
-    end
+    }
 
-    if(handled = 1)
-        if (proposed_room = -1)
+    if(handled = 1) {
+        if (proposed_room = -1) {
             print("You cannot go that way.");
-        end
-        if (proposed_room > -1)
+        } else {
             current_room := proposed_room;
-        end
-    end
+        }
+    }
 
     return handled;
-end
+}
 
-def main()
+def main() {
     print("Welcome to the bscript adventure demo");
     print("");
     
     running := 1;    
-    while(running > 0)
+    while(running > 0) {
         
         # print the current status and ask for input
         print(ROOMS[current_room]);        
@@ -68,11 +67,11 @@ def main()
 
         # command handling
         handled := direction_command(action);
-        if (handled = 0)
-            if (action = "exit")
+        if (handled = 0) {
+            if (action = "exit") {
                 running := 0;
-            end
-        end
-    end
+            }
+        }
+    }
     print("Goodbye.");
-end
+}

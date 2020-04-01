@@ -1,11 +1,11 @@
-def b(x)
+def b(x) {
     x := x * 2;
     print("x in b:");
     print(x);
     return x;
-end
+}
 
-def a(x)
+def a(x) {
     x := x * x;
     print("x in a:");
     print(x);
@@ -13,9 +13,9 @@ def a(x)
     print("x in a again:");
     print(x);
     return x;
-end
+}
 
-def main()
+def main() {
 
     # do some math
     x := 2 * (7 - 2);
@@ -26,4 +26,4 @@ def main()
     print(x);
 
     return x;
-end
+}
