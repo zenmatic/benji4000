@@ -11,7 +11,14 @@ import (
 type Program struct {
 	Pos lexer.Position
 
-	Funs []*Fun `( @@ )*`
+	TopLevel []*TopLevel `( @@ )*`
+}
+
+type TopLevel struct {
+	Pos lexer.Position
+
+	Remark *Remark `(  @@ `
+	Fun    *Fun    `| @@ )`
 }
 
 type Fun struct {
@@ -92,6 +99,7 @@ type Value struct {
 	Pos lexer.Position
 
 	Array         *Array        ` @@`
+	Map           *Map          `| @@`
 	Number        *float64      `| @Number`
 	Call          *Call         `| @@`
 	ArrayElement  *ArrayElement `| @@`
@@ -112,6 +120,20 @@ type Array struct {
 
 	LeftValue   *Value   `"[" @@*`
 	RightValues []*Value `( "," @@ )* "]"`
+}
+
+type Map struct {
+	Pos lexer.Position
+
+	LeftNameValuePair   *NameValuePair   `"{" @@*`
+	RightNameValuePairs []*NameValuePair `( "," @@ )* "}"`
+}
+
+type NameValuePair struct {
+	Pos lexer.Position
+
+	Name  string `@String ":"`
+	Value *Value `@@`
 }
 
 type Factor struct {

@@ -1,4 +1,18 @@
+###############################
+# program to demo arrays
 
+# function modifies an array passed by reference
+def foo(list)
+    list[2] := 55;
+end
+
+# creates an array (on the heap) and passes it back by reference
+def create_array()
+    a := [ "abc", "def", "ghi" ];
+    return a;
+end
+
+# this where execution starts
 def main()
     # declare an array
     a := [ 1, 2, 3, 4, 5 ];
@@ -36,4 +50,13 @@ def main()
     print("After removing element 0: " + a + " length=" + len(a));
     del a[3];
     print("After removing element 3: " + a + " length=" + len(a));
+
+    # pass by reference
+    foo(a);
+    print("After pass by reference " + a);
+
+    # create array in function
+    list := create_array();
+    print("After create in function, a=" + a);
+    print("After create in function, list=" + list);
 end

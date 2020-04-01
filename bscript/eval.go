@@ -39,6 +39,23 @@ func (v *Value) Evaluate(ctx *Context) (interface{}, error) {
 	switch {
 	case v.Number != nil:
 		return *v.Number, nil
+	case v.Map != nil:
+		m := make(map[string]interface{})
+		if v.Map.LeftNameValuePair != nil {
+			value, err := v.Map.LeftNameValuePair.Value.Evaluate(ctx)
+			if err != nil {
+				return value, err
+			}
+			m[v.Map.LeftNameValuePair.Name] = value
+			for i := 0; i < len(v.Map.RightNameValuePairs); i++ {
+				value, err := v.Map.RightNameValuePairs[i].Value.Evaluate(ctx)
+				if err != nil {
+					return value, err
+				}
+				m[v.Map.RightNameValuePairs[i].Name] = value
+			}
+		}
+		return m, nil
 	case v.Array != nil:
 		a := []interface{}{}
 		if v.Array.LeftValue != nil {
@@ -57,22 +74,33 @@ func (v *Value) Evaluate(ctx *Context) (interface{}, error) {
 		}
 		return a, nil
 	case v.ArrayElement != nil:
-		value, ok := ctx.Vars[v.ArrayElement.Name]
-		if !ok {
-			return nil, lexer.Errorf(v.Pos, "unknown variable %s", v.ArrayElement.Name)
-		}
-		a := value.([]interface{})
-
 		ivalue, err := v.ArrayElement.Index.Evaluate(ctx)
 		if err != nil {
 			return nil, err
 		}
-		index := (int)(ivalue.(float64))
-		if index < 0 || index >= len(a) {
-			return nil, lexer.Errorf(v.Pos, "Index out of bounds for %s", v.ArrayElement.Name)
-		}
 
-		return a[index], nil
+		value, ok := ctx.Vars[v.ArrayElement.Name]
+		if !ok {
+			return nil, lexer.Errorf(v.Pos, "unknown variable %s", v.ArrayElement.Name)
+		}
+		a, ok := value.([]interface{})
+		if ok {
+			// it's an array
+			index := (int)(ivalue.(float64))
+			if index < 0 || index >= len(a) {
+				return nil, lexer.Errorf(v.Pos, "Index out of bounds for %s", v.ArrayElement.Name)
+			}
+
+			return a[index], nil
+		} else {
+			// map?
+			m, ok := value.(map[string]interface{})
+			if ok {
+				key := ivalue.(string)
+				return m[key], nil
+			}
+			return nil, lexer.Errorf(v.Pos, "Array element should refer to array or map %s", v.ArrayElement.Name)
+		}
 	case v.String != nil:
 		return *v.String, nil
 	case v.Variable != nil:
@@ -337,24 +365,36 @@ func (cmd *Command) Evaluate(ctx *Context) (interface{}, error) {
 		if cmd.Variable != nil {
 			ctx.Vars[*cmd.Variable] = value
 		} else if cmd.ArrayElement != nil {
-			avalue, ok := ctx.Vars[cmd.ArrayElement.Name]
-			if !ok {
-				return nil, lexer.Errorf(cmd.Pos, "Unknown variable %s", cmd.ArrayElement.Name)
-			}
-			a := avalue.([]interface{})
-
 			ivalue, err := cmd.ArrayElement.Index.Evaluate(ctx)
 			if err != nil {
 				return nil, err
 			}
-			index := (int)(ivalue.(float64))
-			if index < 0 || index > len(a) {
-				return nil, lexer.Errorf(cmd.Pos, "Index out of bounds for %s", cmd.ArrayElement.Name)
+
+			avalue, ok := ctx.Vars[cmd.ArrayElement.Name]
+			if !ok {
+				return nil, lexer.Errorf(cmd.Pos, "Unknown variable %s", cmd.ArrayElement.Name)
 			}
-			if index == len(a) {
-				ctx.Vars[cmd.ArrayElement.Name] = append(a, value)
+			a, ok := avalue.([]interface{})
+			if ok {
+				// it's an array
+				index := (int)(ivalue.(float64))
+				if index < 0 || index > len(a) {
+					return nil, lexer.Errorf(cmd.Pos, "Index out of bounds for %s", cmd.ArrayElement.Name)
+				}
+				if index == len(a) {
+					ctx.Vars[cmd.ArrayElement.Name] = append(a, value)
+				} else {
+					a[index] = value
+				}
 			} else {
-				a[index] = value
+				m, ok := avalue.(map[string]interface{})
+				if ok {
+					// it's a map
+					key := ivalue.(string)
+					m[key] = value
+				} else {
+					return nil, lexer.Errorf(cmd.Pos, "Array element references something other than an array or a map.")
+				}
 			}
 		} else {
 			return nil, lexer.Errorf(cmd.Pos, "Let needs a variable or array element on the LHS.")
@@ -362,22 +402,32 @@ func (cmd *Command) Evaluate(ctx *Context) (interface{}, error) {
 	case cmd.Del != nil:
 		cmd := cmd.Del
 		if cmd.ArrayElement != nil {
-			avalue, ok := ctx.Vars[cmd.ArrayElement.Name]
-			if !ok {
-				return nil, lexer.Errorf(cmd.Pos, "Unknown variable %s", cmd.ArrayElement.Name)
-			}
-			a := avalue.([]interface{})
-
 			ivalue, err := cmd.ArrayElement.Index.Evaluate(ctx)
 			if err != nil {
 				return nil, err
 			}
-			index := (int)(ivalue.(float64))
-			if index < 0 || index >= len(a) {
-				return nil, lexer.Errorf(cmd.Pos, "Index out of bounds for %s", cmd.ArrayElement.Name)
-			}
 
-			ctx.Vars[cmd.ArrayElement.Name] = append(a[:index], a[index+1:]...)
+			avalue, ok := ctx.Vars[cmd.ArrayElement.Name]
+			if !ok {
+				return nil, lexer.Errorf(cmd.Pos, "Unknown variable %s", cmd.ArrayElement.Name)
+			}
+			a, ok := avalue.([]interface{})
+			if ok {
+				// it's an array
+				index := (int)(ivalue.(float64))
+				if index < 0 || index >= len(a) {
+					return nil, lexer.Errorf(cmd.Pos, "Index out of bounds for %s", cmd.ArrayElement.Name)
+				}
+
+				ctx.Vars[cmd.ArrayElement.Name] = append(a[:index], a[index+1:]...)
+			} else {
+				m, ok := avalue.(map[string]interface{})
+				if ok {
+					// it's a map
+					key := ivalue.(string)
+					delete(m, key)
+				}
+			}
 		} else {
 			// in the future, del can take other types (map, maybe struct, etc)
 			return nil, lexer.Errorf(cmd.Pos, "can't delete this type of expression")
@@ -459,7 +509,7 @@ func (fun *Fun) Evaluate(ctx *Context) (interface{}, error) {
 }
 
 func (program *Program) Evaluate() error {
-	if len(program.Funs) == 0 {
+	if len(program.TopLevel) == 0 {
 		return nil
 	}
 
@@ -479,16 +529,29 @@ func (program *Program) Evaluate() error {
 				}
 				return float64(len(a)), nil
 			},
+			"keys": func(arg ...interface{}) (interface{}, error) {
+				m, ok := arg[0].(map[string]interface{})
+				if !ok {
+					return nil, fmt.Errorf("argument to key() should be a map")
+				}
+				keys := make([]interface{}, 0, len(m))
+				for k := range m {
+					keys = append(keys, k)
+				}
+				return keys, nil
+			},
 		},
 		Defs: map[string]*Fun{},
 	}
 
 	// find main
 	var main *Fun
-	for i := 0; i < len(program.Funs); i++ {
-		ctx.Defs[program.Funs[i].Name] = program.Funs[i]
-		if program.Funs[i].Name == "main" {
-			main = program.Funs[i]
+	for i := 0; i < len(program.TopLevel); i++ {
+		if program.TopLevel[i].Fun != nil {
+			ctx.Defs[program.TopLevel[i].Fun.Name] = program.TopLevel[i].Fun
+			if program.TopLevel[i].Fun.Name == "main" {
+				main = program.TopLevel[i].Fun
+			}
 		}
 	}
 	if main == nil {
