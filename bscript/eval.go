@@ -1,15 +1,11 @@
 package bscript
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/alecthomas/participle/lexer"
 	"github.com/alecthomas/repr"
-
-	"bufio"
-	"fmt"
-	"os"
-	"strings"
 )
 
 const STACK_LIMIT = 1000
@@ -28,8 +24,8 @@ type ContextLevel struct {
 // Context for evaluation.
 type Context struct {
 	Stack []ContextLevel
-	// User-provided functions.
-	Functions map[string]Function
+	// built-in functions.
+	Builtins map[string]Function
 	// The current function's name
 	Function string
 	// Vars defined during evaluation.
@@ -64,19 +60,19 @@ func (v *Value) Evaluate(ctx *Context) (interface{}, error) {
 		}
 		return m, nil
 	case v.Array != nil:
-		a := []interface{}{}
+		a := map[int]interface{}{}
 		if v.Array.LeftValue != nil {
 			value, err := v.Array.LeftValue.Evaluate(ctx)
 			if err != nil {
 				return value, err
 			}
-			a = append(a, value)
+			a[0] = value
 			for i := 0; i < len(v.Array.RightValues); i++ {
 				value, err := v.Array.RightValues[i].Evaluate(ctx)
 				if err != nil {
 					return value, err
 				}
-				a = append(a, value)
+				a[i+1] = value
 			}
 		}
 		return a, nil
@@ -96,7 +92,7 @@ func (v *Value) Evaluate(ctx *Context) (interface{}, error) {
 				}
 			}
 		}
-		a, ok := value.([]interface{})
+		a, ok := value.(map[int]interface{})
 		if ok {
 			// it's an array
 			index := (int)(ivalue.(float64))
@@ -309,7 +305,7 @@ func (c *Call) Evaluate(ctx *Context) (interface{}, error) {
 	if !ok {
 		// fmt.Println("Calling builtin", c.Name)
 		// a built-in function
-		function, ok := ctx.Functions[c.Name]
+		function, ok := ctx.Builtins[c.Name]
 		if !ok {
 			return nil, lexer.Errorf(c.Pos, "unknown function %q", c.Name)
 		}
@@ -406,18 +402,14 @@ func (cmd *Let) Evaluate(ctx *Context) (interface{}, error) {
 		if !ok {
 			return nil, lexer.Errorf(cmd.Pos, "Unknown variable %s", cmd.ArrayElement.Name)
 		}
-		a, ok := avalue.([]interface{})
+		a, ok := avalue.(map[int]interface{})
 		if ok {
 			// it's an array
 			index := (int)(ivalue.(float64))
 			if index < 0 || index > len(a) {
 				return nil, lexer.Errorf(cmd.Pos, "Index out of bounds for %s", cmd.ArrayElement.Name)
 			}
-			if index == len(a) {
-				ctx.Vars[cmd.ArrayElement.Name] = append(a, value)
-			} else {
-				a[index] = value
-			}
+			a[index] = value
 		} else {
 			m, ok := avalue.(map[string]interface{})
 			if ok {
@@ -455,7 +447,7 @@ func (cmd *Command) Evaluate(ctx *Context) (interface{}, error) {
 			if !ok {
 				return nil, lexer.Errorf(cmd.Pos, "Unknown variable %s", cmd.ArrayElement.Name)
 			}
-			a, ok := avalue.([]interface{})
+			a, ok := avalue.(map[int]interface{})
 			if ok {
 				// it's an array
 				index := (int)(ivalue.(float64))
@@ -463,7 +455,10 @@ func (cmd *Command) Evaluate(ctx *Context) (interface{}, error) {
 					return nil, lexer.Errorf(cmd.Pos, "Index out of bounds for %s", cmd.ArrayElement.Name)
 				}
 
-				ctx.Vars[cmd.ArrayElement.Name] = append(a[:index], a[index+1:]...)
+				for i := index; i < len(a)-1; i++ {
+					a[i] = a[i+1]
+				}
+				delete(a, len(a)-1)
 			} else {
 				m, ok := avalue.(map[string]interface{})
 				if ok {
@@ -562,37 +557,8 @@ func (program *Program) Evaluate() error {
 		Vars:     map[string]interface{}{},
 		Globals:  map[string]interface{}{},
 		Function: "",
-		Functions: map[string]Function{
-			"print": func(arg ...interface{}) (interface{}, error) {
-				fmt.Println(arg[0])
-				return nil, nil
-			},
-			"input": func(arg ...interface{}) (interface{}, error) {
-				reader := bufio.NewReader(os.Stdin)
-				fmt.Print(arg[0])
-				text, err := reader.ReadString('\n')
-				return strings.TrimSpace(text), err
-			},
-			"len": func(arg ...interface{}) (interface{}, error) {
-				a, ok := arg[0].([]interface{})
-				if !ok {
-					return nil, fmt.Errorf("argument to len() should be an array")
-				}
-				return float64(len(a)), nil
-			},
-			"keys": func(arg ...interface{}) (interface{}, error) {
-				m, ok := arg[0].(map[string]interface{})
-				if !ok {
-					return nil, fmt.Errorf("argument to key() should be a map")
-				}
-				keys := make([]interface{}, 0, len(m))
-				for k := range m {
-					keys = append(keys, k)
-				}
-				return keys, nil
-			},
-		},
-		Defs: map[string]*Fun{},
+		Builtins: Builtins(),
+		Defs:     map[string]*Fun{},
 	}
 
 	// find main
@@ -659,10 +625,23 @@ func evaluateFloats(ctx *Context, lhs interface{}, rhsExpr Evaluatable) (float64
 	return lhsNumber, rhsNumber, nil
 }
 
+func EvalString(value interface{}) string {
+	avalue, ok := value.(map[int]interface{})
+	if ok {
+		// print it as an array
+		a := make([]interface{}, len(avalue))
+		for i, v := range avalue {
+			a[i] = EvalString(v)
+		}
+		return fmt.Sprintf("%v", a)
+	}
+	return fmt.Sprintf("%v", value)
+}
+
 func evaluateStrings(ctx *Context, lhs interface{}, rhsExpr Evaluatable) (string, string, error) {
 	rhs, err := rhsExpr.Evaluate(ctx)
 	if err != nil {
 		return "", "", err
 	}
-	return fmt.Sprintf("%v", lhs), fmt.Sprintf("%v", rhs), nil
+	return EvalString(lhs), EvalString(rhs), nil
 }
