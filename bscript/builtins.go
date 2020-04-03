@@ -21,7 +21,7 @@ func input(arg ...interface{}) (interface{}, error) {
 }
 
 func length(arg ...interface{}) (interface{}, error) {
-	a, ok := arg[0].(map[int]interface{})
+	a, ok := arg[0].(*[]interface{})
 	if !ok {
 		s, ok := arg[0].(string)
 		if !ok {
@@ -29,7 +29,7 @@ func length(arg ...interface{}) (interface{}, error) {
 		}
 		return float64(len(s)), nil
 	}
-	return float64(len(a)), nil
+	return float64(len(*a)), nil
 }
 
 func substr(arg ...interface{}) (interface{}, error) {
@@ -59,11 +59,13 @@ func keys(arg ...interface{}) (interface{}, error) {
 	if !ok {
 		return nil, fmt.Errorf("argument to key() should be a map")
 	}
-	keys := make([]interface{}, 0, len(m))
+	keys := make([]interface{}, len(m))
+	index := 0
 	for k := range m {
-		keys = append(keys, k)
+		keys[index] = k
+		index++
 	}
-	return keys, nil
+	return &keys, nil
 }
 
 func Builtins() map[string]Function {

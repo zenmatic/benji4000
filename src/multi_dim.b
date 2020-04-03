@@ -11,14 +11,14 @@ def foo() {
 
 def main() {
 
-    print(a);
+    print("a=" + a);
 
     b := a[0];
-    print(b);
+    print("b=" + b);
 
     del b[1]; # maybe del should be a function
-    print(b);
-    print(a);
+    print("b=" + b);
+    print("a=" + a);
 
     # foo();
     # print(a);

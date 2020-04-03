@@ -70,20 +70,32 @@ def direction_command(action) {
         if (proposed_room = -1) {
             print("You cannot go that way.");
         } else {
-            # todo: need AND/OR handling
-            if(proposed_room = GRASSY_FIELD) {
-                if(current_room = SMALL_ROOM) {
-                    if(door_locked = 1){
-                        print("A locked door prevents you from going outside.");
-                        return handled;
-                    }
-                }
+            if(room_transition(proposed_room) = 1) {
+                current_room := proposed_room;
             }
-            current_room := proposed_room;
         }
     }
 
     return handled;
+}
+
+# if the transition is allowed, return 1, else 0
+def room_transition(proposed_room) {
+    # todo: need AND/OR handling
+    if(proposed_room = GRASSY_FIELD) {
+        if(current_room = SMALL_ROOM) {
+            if(door_locked = 1){
+                if(has_object("key") = 1) {
+                    door_locked := 0;
+                    print("You use your key to unlock the door.");
+                } else {
+                    print("A locked door prevents you from going outside.");
+                    return 0;
+                }
+            }
+        }
+    }
+    return 1;
 }
 
 def get_object(name) {
@@ -96,34 +108,79 @@ def get_object(name) {
         if(obj["short"] = name) {
             object_index := idx;
             # remove from the room
-            print("BEFORE: " + objects_in_room);
             del objects_in_room[i];
-            print("AFTER: " + objects_in_room);
+            inventory[len(inventory)] := object_index;
+            obj := OBJECTS[object_index];
+            print("You pick up " + obj["description"] + ".");
+            return 0;
         } else {
             i := i + 1;
         }
     }
-    if(object_index > -1) {
-        inventory[len(inventory)] := object_index;
-        obj := OBJECTS[object_index];
-        print("You pick up " + obj["description"] + ".");
-    } else {
-        print("You don't see that anywhere.");
-    }
+    print("You don't see that anywhere.");
 }
 
 def drop_object(name) {
-    print("dropping object: " + name);
+    object_index := -1;
+    objects_in_room := object_locations[current_room];
+    i := 0;
+    while(i < len(OBJECTS)) {
+        obj := OBJECTS[i];
+        if(obj["short"] = name) {
+            object_index := i;
+            objects_in_room[len(objects_in_room)] := object_index;
+
+            i := 0;
+            while(i < len(inventory)) {
+                if(inventory[i] = object_index) {
+                    del inventory[i];
+                }
+                i := i + 1;
+            }
+            print("You drop " + obj["description"] + ".");
+            return 0;
+        } else {
+            i := i + 1;
+        }
+    }
+    print("You are not carrying that.");
+}
+
+def inventory() {
+    if(len(inventory) > 0) {
+        print("You are carrying:");
+        i := 0;
+        while(i < len(inventory)) {
+            o := OBJECTS[i];
+            print("\t-" + o["description"]);
+            i := i + 1;
+        }
+    } else {
+        print("You aren't carrying anything.");
+    }
+}
+
+def has_object(name) {
+    i := 0;
+    while(i < len(inventory)) {
+        o := OBJECTS[i];
+        if(o["short"] = name) {
+            return 1;
+        }
+        i := i + 1;
+    }
+    return 0;
 }
 
 def main() {
-    print("Welcome to the bscript adventure demo");
-    print("");
+    print("Welcome to the bscript adventure demo.");
+    print("The object of the game is to decorate your living room.");
     
     running := 1;    
     while(running > 0) {
         
         # print the current status and ask for input
+        print("");
         print(ROOMS[current_room]);
         i := 0;
         objects_in_room := object_locations[current_room];
@@ -141,14 +198,30 @@ def main() {
             # todo: need "else if"
             if (action = "exit") {
                 running := 0;
-            } else {
-                if(substr(action, 0, 4) = "get ") {
-                    get_object(substr(action, 4));
-                } else {
-                    if(substr(action, 0, 5) = "drop ") {
-                        drop_object(substr(action, 5));
+                handled := 1;
+            }
+            if(substr(action, 0, 4) = "get ") {
+                get_object(substr(action, 4));
+                handled := 1;
+            }
+            if(substr(action, 0, 5) = "drop ") {
+                name := substr(action, 5);
+                drop_object(name);
+                if(name = "shell") {
+                    if(current_room = SMALL_ROOM) {
+                        print("");
+                        print("Congratulations! You have found suitable decoration for your living room.");
+                        return 0;
                     }
                 }
+                handled := 1;
+            }
+            if(substr(action, 0, 3) = "inv") {
+                inventory();
+                handled := 1;
+            }
+            if(handled = 0) {
+                print("I don't understand this command.");
             }
         }
     }
