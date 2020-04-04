@@ -172,14 +172,38 @@ def has_object(name) {
     return 0;
 }
 
+def help() {
+    print("This game understands the following commands:");
+    print("n, s, e, w: directions to move in");
+    print("get <object>: pick up an object");
+    print("drop <object>: drop an object");
+    print("inv, inventory: list carried items");
+    print("exit: leave the game");
+    print("help: show this help text");
+}
+
+# the game is won when the seashell is in the small room
+def is_game_won() {
+    objects_in_room := object_locations[SMALL_ROOM];
+    i := 0;
+    while(i < len(objects_in_room)) {
+        if(objects_in_room[i] = SEASHELL) {
+            return 1;
+        }
+        i := i + 1;
+    }
+    return 0;
+}
+
 def main() {
     print("Welcome to the bscript adventure demo.");
     print("The object of the game is to decorate your living room.");
     
+    # the main game loop
     running := 1;    
     while(running > 0) {
         
-        # print the current status and ask for input
+        # print the current room & objects
         print("");
         print(ROOMS[current_room]);
         i := 0;
@@ -190,6 +214,8 @@ def main() {
             i := i + 1;
         }
         print("");
+
+        # ask for user input
         action := input("> ");
 
         # command handling
@@ -205,24 +231,26 @@ def main() {
                 handled := 1;
             }
             if(substr(action, 0, 5) = "drop ") {
-                name := substr(action, 5);
-                drop_object(name);
-                if(name = "shell") {
-                    if(current_room = SMALL_ROOM) {
-                        print("");
-                        print("Congratulations! You have found suitable decoration for your living room.");
-                        return 0;
-                    }
-                }
+                drop_object(substr(action, 5));
                 handled := 1;
             }
             if(substr(action, 0, 3) = "inv") {
                 inventory();
                 handled := 1;
             }
+            if(substr(action, 0, 4) = "help") {
+                help();
+                handled := 1;
+            }            
             if(handled = 0) {
                 print("I don't understand this command.");
             }
+        }
+
+        if(is_game_won() = 1) {
+            print("");
+            print("Congratulations! You have found suitable decoration for your living room.");
+            return 0;        
         }
     }
     print("Goodbye.");
