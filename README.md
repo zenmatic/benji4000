@@ -11,16 +11,19 @@ For example:
 `./benji4000 -source=src/adventure.b`
 
 # bscript
-The programming language of benji. 
+The programming language of benji. Execution starts by calling the function named "main".
 
 ## Features:
 - single line comments: `# this is a comment`
-- variable declarations: `a := 1;`
+- variable declarations: `a := 1;` Global variables are declared outside of any function.
+- constants: `const PI=3.14159;`
 - strings: `a := "hello";`
 - control flow: `if(a = 1) { doSomething(); } else { doSomethingElse(); }`
 - loop: `while(a < 10) { a := a + 1; }`
 - arrays: `a := [1, 2, 3];`
 - maps: `a := { "a": 1, "b": 2 };`
+- function definitions: `def hello(x) { print(x); }`
+- function calls: `f(g(123));`
 - builtin functions:
    - length: the length of a string, array or map
    - keys: returns a map's keys as an array (always strings)
