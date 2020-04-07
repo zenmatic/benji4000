@@ -113,16 +113,27 @@ type Value struct {
 	Number        *float64      `| @Number`
 	Call          *Call         `| @@`
 	ArrayElement  *ArrayElement `| @@`
-	Variable      *string       `| @Ident`
+	Variable      *Variable     `| @@`
 	String        *string       `| @String`
 	Subexpression *Expression   `| "(" @@ ")"`
+}
+
+type Variable struct {
+	Pos lexer.Position
+
+	Variable string `@Ident`
 }
 
 type ArrayElement struct {
 	Pos lexer.Position
 
-	Name  string      `@Ident "["`
-	Index *Expression `@@ "]"`
+	Variable *Variable     `@@`
+	Indexes  []*ArrayIndex `( @@ )+`
+}
+
+type ArrayIndex struct {
+	Pos   lexer.Position
+	Index *Expression `"[" @@ "]"`
 }
 
 type Array struct {

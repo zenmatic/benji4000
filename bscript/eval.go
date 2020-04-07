@@ -81,58 +81,58 @@ func (v *Value) Evaluate(ctx *Context) (interface{}, error) {
 		}
 		return &a, nil
 	case v.ArrayElement != nil:
-		ivalue, err := v.ArrayElement.Index.Evaluate(ctx)
+		currentValue, err := v.ArrayElement.Variable.Evaluate(ctx)
 		if err != nil {
 			return nil, err
 		}
+		for _, arrayIndex := range v.ArrayElement.Indexes {
+			ivalue, err := arrayIndex.Index.Evaluate(ctx)
+			if err != nil {
+				return nil, err
+			}
 
-		value, ok := ctx.Vars[v.ArrayElement.Name]
-		if !ok {
-			value, ok = ctx.Consts[v.ArrayElement.Name]
-			if !ok {
-				value, ok = ctx.Globals[v.ArrayElement.Name]
-				if !ok {
-					return nil, lexer.Errorf(v.Pos, "unknown variable %s", v.ArrayElement.Name)
+			a, ok := currentValue.(*[]interface{})
+			if ok {
+				// it's an array
+				index := (int)(ivalue.(float64))
+				if index < 0 || index >= len(*a) {
+					return nil, lexer.Errorf(v.Pos, "Index out of bounds")
 				}
+				currentValue = (*a)[index]
+			} else {
+				// map?
+				m, ok := currentValue.(map[string]interface{})
+				if !ok {
+					return nil, lexer.Errorf(v.Pos, "Array element should refer to array or map")
+				}
+				currentValue = m[ivalue.(string)]
 			}
 		}
-		a, ok := value.(*[]interface{})
-		if ok {
-			// it's an array
-			index := (int)(ivalue.(float64))
-			if index < 0 || index >= len(*a) {
-				return nil, lexer.Errorf(v.Pos, "Index out of bounds for %s", v.ArrayElement.Name)
-			}
-
-			return (*a)[index], nil
-		}
-		// map?
-		m, ok := value.(map[string]interface{})
-		if ok {
-			key := ivalue.(string)
-			return m[key], nil
-		}
-		return nil, lexer.Errorf(v.Pos, "Array element should refer to array or map %s", v.ArrayElement.Name)
+		return currentValue, nil
 	case v.String != nil:
 		return *v.String, nil
 	case v.Variable != nil:
-		value, ok := ctx.Vars[*v.Variable]
-		if !ok {
-			value, ok = ctx.Consts[*v.Variable]
-			if !ok {
-				value, ok = ctx.Globals[*v.Variable]
-				if !ok {
-					return nil, lexer.Errorf(v.Pos, "unknown variable %q", *v.Variable)
-				}
-			}
-		}
-		return value, nil
+		return v.Variable.Evaluate(ctx)
 	case v.Subexpression != nil:
 		return v.Subexpression.Evaluate(ctx)
 	case v.Call != nil:
 		return v.Call.Evaluate(ctx)
 	}
 	panic("unsupported value type" + repr.String(v))
+}
+
+func (v *Variable) Evaluate(ctx *Context) (interface{}, error) {
+	value, ok := ctx.Vars[v.Variable]
+	if !ok {
+		value, ok = ctx.Consts[v.Variable]
+		if !ok {
+			value, ok = ctx.Globals[v.Variable]
+			if !ok {
+				return nil, lexer.Errorf(v.Pos, "unknown variable %q", v.Variable)
+			}
+		}
+	}
+	return value, nil
 }
 
 func (f *Factor) Evaluate(ctx *Context) (interface{}, error) {
@@ -396,35 +396,50 @@ func (cmd *Let) Evaluate(ctx *Context) (interface{}, error) {
 	if cmd.Variable != nil {
 		ctx.Vars[*cmd.Variable] = value
 	} else if cmd.ArrayElement != nil {
-		ivalue, err := cmd.ArrayElement.Index.Evaluate(ctx)
+		currentValue, err := cmd.ArrayElement.Variable.Evaluate(ctx)
 		if err != nil {
 			return nil, err
 		}
 
-		avalue, ok := ctx.Vars[cmd.ArrayElement.Name]
-		if !ok {
-			return nil, lexer.Errorf(cmd.Pos, "Unknown variable %s", cmd.ArrayElement.Name)
-		}
-		a, ok := avalue.(*[]interface{})
-		if ok {
-			// it's an array
-			index := (int)(ivalue.(float64))
-			if index < 0 || index > len(*a) {
-				return nil, lexer.Errorf(cmd.Pos, "Index out of bounds for %s", cmd.ArrayElement.Name)
+		for arrayIndexIndex, arrayIndex := range cmd.ArrayElement.Indexes {
+			ivalue, err := arrayIndex.Index.Evaluate(ctx)
+			if err != nil {
+				return nil, err
 			}
-			if index < len(*a) {
-				(*a)[index] = value
-			} else {
-				*a = append(*a, value)
-			}
-		} else {
-			m, ok := avalue.(map[string]interface{})
+
+			lastElement := arrayIndexIndex == len(cmd.ArrayElement.Indexes)-1
+
+			a, ok := currentValue.(*[]interface{})
 			if ok {
-				// it's a map
-				key := ivalue.(string)
-				m[key] = value
+				// it's an array
+				index := (int)(ivalue.(float64))
+				if lastElement {
+					if index < 0 || index > len(*a) {
+						return nil, lexer.Errorf(cmd.Pos, "Index out of bounds")
+					}
+					if index < len(*a) {
+						(*a)[index] = value
+					} else {
+						*a = append(*a, value)
+					}
+				} else {
+					if index < 0 || index >= len(*a) {
+						return nil, lexer.Errorf(cmd.Pos, "Index out of bounds")
+					}
+					currentValue = (*a)[index]
+				}
 			} else {
-				return nil, lexer.Errorf(cmd.Pos, "Array element references something other than an array or a map.")
+				m, ok := currentValue.(map[string]interface{})
+				if ok {
+					key := ivalue.(string)
+					if lastElement {
+						m[key] = value
+					} else {
+						currentValue = m[key]
+					}
+				} else {
+					return nil, lexer.Errorf(cmd.Pos, "Invalid array element: should be an array or a map")
+				}
 			}
 		}
 	} else {
@@ -445,30 +460,43 @@ func (cmd *Command) Evaluate(ctx *Context) (interface{}, error) {
 	case cmd.Del != nil:
 		cmd := cmd.Del
 		if cmd.ArrayElement != nil {
-			ivalue, err := cmd.ArrayElement.Index.Evaluate(ctx)
+			currentValue, err := cmd.ArrayElement.Variable.Evaluate(ctx)
 			if err != nil {
 				return nil, err
 			}
 
-			avalue, ok := ctx.Vars[cmd.ArrayElement.Name]
-			if !ok {
-				return nil, lexer.Errorf(cmd.Pos, "Unknown variable %s", cmd.ArrayElement.Name)
-			}
-			a, ok := avalue.(*[]interface{})
-			if ok {
-				// it's an array
-				index := (int)(ivalue.(float64))
-				if index < 0 || index >= len(*a) {
-					return nil, lexer.Errorf(cmd.Pos, "Index out of bounds for %s", cmd.ArrayElement.Name)
+			for arrayIndexIndex, arrayIndex := range cmd.ArrayElement.Indexes {
+				ivalue, err := arrayIndex.Index.Evaluate(ctx)
+				if err != nil {
+					return nil, err
 				}
 
-				*a = append((*a)[:index], (*a)[index+1:]...)
-			} else {
-				m, ok := avalue.(map[string]interface{})
+				lastElement := arrayIndexIndex == len(cmd.ArrayElement.Indexes)-1
+
+				a, ok := currentValue.(*[]interface{})
 				if ok {
-					// it's a map
-					key := ivalue.(string)
-					delete(m, key)
+					// it's an array
+					index := (int)(ivalue.(float64))
+					if index < 0 || index >= len(*a) {
+						return nil, lexer.Errorf(cmd.Pos, "Index out of bounds")
+					}
+					if lastElement {
+						*a = append((*a)[:index], (*a)[index+1:]...)
+					} else {
+						currentValue = (*a)[index]
+					}
+				} else {
+					m, ok := currentValue.(map[string]interface{})
+					if ok {
+						key := ivalue.(string)
+						if lastElement {
+							delete(m, key)
+						} else {
+							currentValue = m[key]
+						}
+					} else {
+						return nil, lexer.Errorf(cmd.Pos, "Invalid array element: should be an array or a map")
+					}
 				}
 			}
 		} else {

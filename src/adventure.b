@@ -54,14 +54,12 @@ object_locations := [
 # process a direction command and return the 1 if handled, 0 otherwise
 def direction_command(action) {
 
-    # todo: we don't yet handle multidimensional arrays: MAP[current_room][0], etc.
-    current_room_map := MAP[current_room];
     handled := 0;
     i := 0;
     while(i < len(DIRS)) {
         if(DIRS[i] = action) {
             handled := 1;
-            proposed_room := current_room_map[i];
+            proposed_room := MAP[current_room][i];
         }
         i := i + 1;
     }
@@ -100,15 +98,14 @@ def room_transition(proposed_room) {
 
 def get_object(name) {
     object_index := -1;
-    objects_in_room := object_locations[current_room];
     i := 0;
-    while(i < len(objects_in_room)) {
-        idx := objects_in_room[i];
+    while(i < len(object_locations[current_room])) {
+        idx := object_locations[current_room][i];
         obj := OBJECTS[idx];
         if(obj["short"] = name) {
             object_index := idx;
             # remove from the room
-            del objects_in_room[i];
+            del object_locations[current_room][i];
             inventory[len(inventory)] := object_index;
             obj := OBJECTS[object_index];
             print("You pick up " + obj["description"] + ".");
@@ -122,13 +119,12 @@ def get_object(name) {
 
 def drop_object(name) {
     object_index := -1;
-    objects_in_room := object_locations[current_room];
     i := 0;
     while(i < len(OBJECTS)) {
         obj := OBJECTS[i];
         if(obj["short"] = name) {
             object_index := i;
-            objects_in_room[len(objects_in_room)] := object_index;
+            object_locations[current_room][len(object_locations[current_room])] := object_index;
 
             i := 0;
             while(i < len(inventory)) {
@@ -151,8 +147,7 @@ def inventory() {
         print("You are carrying:");
         i := 0;
         while(i < len(inventory)) {
-            o := OBJECTS[i];
-            print("\t-" + o["description"]);
+            print("\t-" + OBJECTS[i]["description"]);
             i := i + 1;
         }
     } else {
@@ -163,8 +158,7 @@ def inventory() {
 def has_object(name) {
     i := 0;
     while(i < len(inventory)) {
-        o := OBJECTS[i];
-        if(o["short"] = name) {
+        if(OBJECTS[i]["short"] = name) {
             return 1;
         }
         i := i + 1;
@@ -184,10 +178,9 @@ def help() {
 
 # the game is won when the seashell is in the small room
 def is_game_won() {
-    objects_in_room := object_locations[SMALL_ROOM];
     i := 0;
-    while(i < len(objects_in_room)) {
-        if(objects_in_room[i] = SEASHELL) {
+    while(i < len(object_locations[SMALL_ROOM])) {
+        if(object_locations[SMALL_ROOM][i] = SEASHELL) {
             return 1;
         }
         i := i + 1;
@@ -207,9 +200,8 @@ def main() {
         print("");
         print(ROOMS[current_room]);
         i := 0;
-        objects_in_room := object_locations[current_room];
-        while(i < len(objects_in_room)) {
-            obj := OBJECTS[objects_in_room[i]];
+        while(i < len(object_locations[current_room])) {
+            obj := OBJECTS[object_locations[current_room][i]];
             print("There is " + obj["description"] + " here.");
             i := i + 1;
         }
