@@ -15,7 +15,7 @@ The programming language of benji. Execution starts by calling the function name
 
 ## Features:
 - single line comments: `# this is a comment`
-- variable declarations: `a := 1;` Global variables are declared outside of any function.
+- variable declarations: `a := 1;` Global variables are declared outside of any function. Variable values can be a number, a string, an array or a map.
 - constants: `const PI=3.14159;`
 - strings: `a := "hello";`
 - control flow: `if(a = 1) { doSomething(); } else { doSomethingElse(); }`
