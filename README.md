@@ -31,8 +31,8 @@ The programming language of benji. Execution starts by calling the function name
    - print: print strings + variables
    - input: ask for user input
    
-  ## Coming soon:
-  - first-class functions
-  - closures
-  - boolean operators (and, or, not)
+## Coming soon:
+- first-class functions
+- closures
+- boolean operators (and, or, not)
   
