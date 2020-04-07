@@ -21,7 +21,7 @@ The programming language of benji. Execution starts by calling the function name
 - control flow: `if(a = 1) { doSomething(); } else { doSomethingElse(); }`
 - loop: `while(a < 10) { a := a + 1; }`
 - arrays: `a := [1, 2, 3];`
-- maps: `a := { "a": 1, "b": 2 };`
+- maps: `a := { "a": 1, "b": 2 };` Map keys are always strings, values can be anything (including other maps.)
 - function definitions: `def hello(x) { print(x); }`
 - function calls: `f(g(123));`
 - builtin functions:
