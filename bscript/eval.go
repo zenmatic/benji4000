@@ -29,6 +29,12 @@ type Closure struct {
 	Parent *Closure
 }
 
+type Runtime struct {
+	Pos      lexer.Position
+	Function string
+	Vars     map[string]interface{}
+}
+
 // Context for evaluation.
 type Context struct {
 	// built-in functions.
@@ -37,6 +43,8 @@ type Context struct {
 	Consts map[string]interface{}
 	// the global closure
 	Closure *Closure
+	// the runtime stack
+	RuntimeStack []Runtime
 }
 
 func (v *Value) Evaluate(ctx *Context) (interface{}, error) {
@@ -286,11 +294,19 @@ func (ctx *Context) debug(message string) {
 	fmt.Println("====================================")
 	fmt.Println(message)
 	indent := ""
+	fmt.Println("Closures:")
 	for closure := ctx.Closure; closure != nil; closure = closure.Parent {
 		fmt.Println("-----------------")
 		fmt.Printf("%s Function: %s\n", indent, closure.Function)
 		fmt.Printf("%s Vars: %v\n", indent, closure.Vars)
 		fmt.Printf("%s Defs: %v\n", indent, closure.Defs)
+		indent = indent + "  "
+	}
+	fmt.Println("------------------------------------")
+	fmt.Println("Runtime Stack:")
+	indent = ""
+	for _, runtime := range ctx.RuntimeStack {
+		fmt.Printf("%s Call %s at %s Vars=%s\n", indent, runtime.Function, runtime.Pos, runtime.Vars)
 		indent = indent + "  "
 	}
 	fmt.Println("====================================")
@@ -314,16 +330,16 @@ func evalFunctionCall(ctx *Context, c *Call, closure *Closure, args []interface{
 	// 	panic("Stack limit exceeded")
 	// }
 
-	// save local variables
+	// save local variables (needed when a recursive call modifies the closure's variables)
 	saved := make(map[string]interface{}, len(ctx.Closure.Vars))
 	for k, v := range ctx.Closure.Vars {
 		saved[k] = v
 	}
-	// // push a runtime onto the stack
-	// ctx.Runtime = append(ctx.Runtime, Runtime{
-	// 	Vars: saved,
-	// 	Closure: ctx.Closure,
-	// })
+	ctx.RuntimeStack = append(ctx.RuntimeStack, Runtime{
+		Pos:      c.Pos,
+		Function: c.Name,
+		Vars:     saved,
+	})
 	savedClosure := ctx.Closure
 	ctx.Closure = closure
 
@@ -346,6 +362,8 @@ func evalFunctionCall(ctx *Context, c *Call, closure *Closure, args []interface{
 	for k, v := range saved {
 		ctx.Closure.Vars[k] = v
 	}
+	// drop the last frame of the stack
+	ctx.RuntimeStack = ctx.RuntimeStack[:len(ctx.RuntimeStack)-1]
 
 	return value, err
 }
@@ -598,9 +616,10 @@ func (program *Program) Evaluate() error {
 		Parent:   nil,
 	}
 	ctx := &Context{
-		Consts:   map[string]interface{}{},
-		Builtins: Builtins(),
-		Closure:  global,
+		Consts:       map[string]interface{}{},
+		Builtins:     Builtins(),
+		Closure:      global,
+		RuntimeStack: []Runtime{},
 	}
 
 	// define constants and globals
