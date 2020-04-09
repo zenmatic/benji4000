@@ -8,6 +8,8 @@ import (
 	"github.com/alecthomas/repr"
 )
 
+var ANON_COUNT uint32
+
 const STACK_LIMIT = 1000
 
 type Evaluatable interface {
@@ -17,8 +19,10 @@ type Evaluatable interface {
 type Builtin func(ctx *Context, args ...interface{}) (interface{}, error)
 
 type Closure struct {
-	// current function defition
-	Fun *Fun
+	// function defition: params
+	Params []string
+	// function defition: commands
+	Commands []*Command
 	// The current function's name
 	Function string
 	// variables
@@ -118,6 +122,8 @@ func (v *Value) Evaluate(ctx *Context) (interface{}, error) {
 			}
 		}
 		return currentValue, nil
+	case v.AnonFun != nil:
+		return v.AnonFun.Evaluate(ctx)
 	case v.String != nil:
 		return *v.String, nil
 	case v.Variable != nil:
@@ -348,15 +354,15 @@ func evalFunctionCall(ctx *Context, c *Call, closure *Closure, args []interface{
 	ctx.Closure = closure
 
 	// create function call param variables
-	if len(closure.Fun.Params) != len(args) {
+	if len(closure.Params) != len(args) {
 		return nil, lexer.Errorf(c.Pos, "Not all function params given in call to %s", c.Name)
 	}
-	for index := 0; index < len(closure.Fun.Params); index++ {
-		closure.Vars[closure.Fun.Params[index]] = args[index]
+	for index := 0; index < len(closure.Params); index++ {
+		closure.Vars[closure.Params[index]] = args[index]
 	}
 
 	// make the call (evaluate the function's code)
-	value, err := evalBlock(ctx, closure.Fun.Commands)
+	value, err := evalBlock(ctx, closure.Commands)
 	if err != nil {
 		return nil, lexer.Errorf(c.Pos, "call to %s() failed: %s", c.Name, err)
 	}
@@ -651,15 +657,26 @@ func (ifcommand *If) Evaluate(ctx *Context) (interface{}, error) {
 	return evalBlock(ctx, ifcommand.ElseCommands)
 }
 
-func (fun *Fun) Evaluate(ctx *Context) (interface{}, error) {
-	ctx.Closure.Defs[fun.Name] = &Closure{
-		Fun:      fun,
+func makeClosure(ctx *Context, name string, params []string, commands []*Command) *Closure {
+	return &Closure{
+		Params:   params,
+		Commands: commands,
 		Vars:     map[string]interface{}{},
 		Defs:     map[string]*Closure{},
-		Function: fun.Name,
+		Function: name,
 		Parent:   ctx.Closure,
 	}
+}
+
+func (fun *Fun) Evaluate(ctx *Context) (interface{}, error) {
+	ctx.Closure.Defs[fun.Name] = makeClosure(ctx, fun.Name, fun.Params, fun.Commands)
 	return nil, nil
+}
+
+func (anonFun *AnonFun) Evaluate(ctx *Context) (interface{}, error) {
+	name := fmt.Sprintf("_anon_%d", ANON_COUNT)
+	ANON_COUNT++
+	return makeClosure(ctx, name, anonFun.Params, anonFun.Commands), nil
 }
 
 func (program *Program) Evaluate() error {
@@ -669,7 +686,8 @@ func (program *Program) Evaluate() error {
 
 	global := &Closure{
 		Function: "global",
-		Fun:      nil,
+		Params:   []string{},
+		Commands: []*Command{},
 		Vars:     map[string]interface{}{},
 		Defs:     map[string]*Closure{},
 		Parent:   nil,

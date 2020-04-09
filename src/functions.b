@@ -26,6 +26,13 @@ def map(fx, array) {
     }
 }
 
+def double2() {
+    return (x) => { 
+        return x * 2; 
+    };
+}
+
+
 def main() {
     # call a function
     x := double(2);
@@ -47,4 +54,14 @@ def main() {
     print("a=" + a);
     map(double, a);
     print("doubled a=" + a);
+
+    # anonymous functions (function literals)
+    map((n) => {
+        return n + 1;
+    }, a);
+    print("added 1 to a=" + a);
+
+    # anon function returned
+    anon := double2();
+    print("2 * 5=" + anon(5));
 }

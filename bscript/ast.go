@@ -38,6 +38,13 @@ type Fun struct {
 	Commands []*Command `")" "{" ( @@ )* "}"`
 }
 
+type AnonFun struct {
+	Pos lexer.Position
+
+	Params   []string   ` "(" ( @Ident ( "," @Ident )* )* ")" "=" ">"`
+	Commands []*Command `"{" ( @@ )* "}"`
+}
+
 type Command struct {
 	Pos lexer.Position
 
@@ -117,6 +124,7 @@ type Value struct {
 
 	Array         *Array        ` @@`
 	Map           *Map          `| @@`
+	AnonFun       *AnonFun      `| @@`
 	Number        *float64      `| @Number`
 	Call          *Call         `| @@`
 	ArrayElement  *ArrayElement `| @@`
