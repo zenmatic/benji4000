@@ -30,9 +30,14 @@ The programming language of benji. Execution starts by calling the function name
    - substr: substring, for example: `substr("Hello World", 1, 2)` prints "el"
    - print: print strings + variables
    - input: ask for user input
+- first class functions: `def f(x) { return 2; } x := f;`
+   - functions as parameters
+   - anonymous functions: `def f(x) { return (n) => { return x + n; }; }`
    
 ## Coming soon:
-- first-class functions
-- closures
 - boolean operators (and, or, not)
+
+## bscript syntax highlighting
+The vscode directory contains a plugin for syntax highlighting for .b files.
+
   

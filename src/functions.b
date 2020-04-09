@@ -32,6 +32,19 @@ def double2() {
     };
 }
 
+def f(n) {
+    return (m) => {
+        return n + m;
+    };
+}
+
+def f2(n) {
+    def g(m) {
+        return n + m;
+    }
+    n := n + 1;
+    return g;
+}
 
 def main() {
     # call a function
@@ -64,4 +77,7 @@ def main() {
     # anon function returned
     anon := double2();
     print("2 * 5=" + anon(5));
+
+    print("anonymous function with closure: f(2)(3)=" + f(2)(3));
+    print("anonymous function with closure, example 2: f2(2)(3)=" + f2(2)(3));
 }
