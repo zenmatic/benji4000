@@ -14,28 +14,29 @@ type Evaluatable interface {
 	Evaluate(ctx *Context) (interface{}, error)
 }
 
-type Function func(args ...interface{}) (interface{}, error)
+type Builtin func(ctx *Context, args ...interface{}) (interface{}, error)
 
-type ContextLevel struct {
+type Closure struct {
+	// current function defition
+	Fun *Fun
+	// The current function's name
 	Function string
-	Vars     map[string]interface{}
+	// variables
+	Vars map[string]interface{}
+	// function definitions
+	Defs map[string]*Closure
+	// the parent closure
+	Parent *Closure
 }
 
 // Context for evaluation.
 type Context struct {
-	Stack []ContextLevel
 	// built-in functions.
-	Builtins map[string]Function
-	// The current function's name
-	Function string
-	// Vars defined during evaluation.
-	Vars map[string]interface{}
-	// Global variables
-	Globals map[string]interface{}
+	Builtins map[string]Builtin
 	// top level constants
 	Consts map[string]interface{}
-	// defined functions
-	Defs map[string]*Fun
+	// the global closure
+	Closure *Closure
 }
 
 func (v *Value) Evaluate(ctx *Context) (interface{}, error) {
@@ -122,17 +123,17 @@ func (v *Value) Evaluate(ctx *Context) (interface{}, error) {
 }
 
 func (v *Variable) Evaluate(ctx *Context) (interface{}, error) {
-	value, ok := ctx.Vars[v.Variable]
-	if !ok {
-		value, ok = ctx.Consts[v.Variable]
-		if !ok {
-			value, ok = ctx.Globals[v.Variable]
-			if !ok {
-				return nil, lexer.Errorf(v.Pos, "unknown variable %q", v.Variable)
-			}
+	value, ok := ctx.Consts[v.Variable]
+	if ok {
+		return value, nil
+	}
+	for closure := ctx.Closure; closure != nil; closure = closure.Parent {
+		value, ok = closure.Vars[v.Variable]
+		if ok {
+			return value, nil
 		}
 	}
-	return value, nil
+	return nil, lexer.Errorf(v.Pos, "unknown variable %q", v.Variable)
 }
 
 func (f *Factor) Evaluate(ctx *Context) (interface{}, error) {
@@ -284,16 +285,72 @@ func (e *Expression) Evaluate(ctx *Context) (interface{}, error) {
 func (ctx *Context) debug(message string) {
 	fmt.Println("====================================")
 	fmt.Println(message)
-	fmt.Printf("Stack=%v\n", ctx.Stack)
-	fmt.Println("------------------------------------")
-	fmt.Printf("Function=%s", ctx.Function)
-	fmt.Printf("Globals=%v\n", ctx.Globals)
-	fmt.Printf("Vars=%v\n", ctx.Vars)
+	indent := ""
+	for closure := ctx.Closure; closure != nil; closure = closure.Parent {
+		fmt.Println("-----------------")
+		fmt.Printf("%s Function: %s\n", indent, closure.Function)
+		fmt.Printf("%s Vars: %v\n", indent, closure.Vars)
+		fmt.Printf("%s Defs: %v\n", indent, closure.Defs)
+		indent = indent + "  "
+	}
 	fmt.Println("====================================")
 }
 
-func (c *Call) Evaluate(ctx *Context) (interface{}, error) {
+func evalBuiltinCall(ctx *Context, c *Call, builtin Builtin, args []interface{}) (interface{}, error) {
+	// fmt.Println("Calling builtin", c.Name)
+	// a built-in function
 
+	value, err := builtin(ctx, args...)
+	if err != nil {
+		fmt.Println(err)
+		ctx.debug("Failed to call function")
+		panic(lexer.Errorf(c.Pos, "call to %s() failed", c.Name))
+	}
+	return value, nil
+}
+
+func evalFunctionCall(ctx *Context, c *Call, closure *Closure, args []interface{}) (interface{}, error) {
+	// if len(ctx.Stack) > STACK_LIMIT {
+	// 	panic("Stack limit exceeded")
+	// }
+
+	// save local variables
+	saved := make(map[string]interface{}, len(ctx.Closure.Vars))
+	for k, v := range ctx.Closure.Vars {
+		saved[k] = v
+	}
+	// // push a runtime onto the stack
+	// ctx.Runtime = append(ctx.Runtime, Runtime{
+	// 	Vars: saved,
+	// 	Closure: ctx.Closure,
+	// })
+	savedClosure := ctx.Closure
+	ctx.Closure = closure
+
+	// create function call param variables
+	if len(closure.Fun.Params) != len(args) {
+		return nil, lexer.Errorf(c.Pos, "Not all function params given in call to %s", c.Name)
+	}
+	for index := 0; index < len(closure.Fun.Params); index++ {
+		closure.Vars[closure.Fun.Params[index]] = args[index]
+	}
+
+	// make the call (evaluate the function's code)
+	value, err := evalBlock(ctx, closure.Fun.Commands)
+	if err != nil {
+		return nil, lexer.Errorf(c.Pos, "call to %s() failed: %s", c.Name, err)
+	}
+
+	// restore local vars and environment
+	ctx.Closure = savedClosure
+	for k, v := range saved {
+		ctx.Closure.Vars[k] = v
+	}
+
+	return value, err
+}
+
+func (c *Call) Evaluate(ctx *Context) (interface{}, error) {
 	args := []interface{}{}
 	for _, arg := range c.Args {
 		value, err := arg.Evaluate(ctx)
@@ -303,88 +360,18 @@ func (c *Call) Evaluate(ctx *Context) (interface{}, error) {
 		args = append(args, value)
 	}
 
-	// fmt.Println("Looking for function", c.Name)
-	fun, ok := ctx.Defs[c.Name]
-	if !ok {
-		// fmt.Println("Calling builtin", c.Name)
-		// a built-in function
-		function, ok := ctx.Builtins[c.Name]
-		if !ok {
-			return nil, lexer.Errorf(c.Pos, "unknown function %q", c.Name)
+	builtin, ok := ctx.Builtins[c.Name]
+	if ok {
+		return evalBuiltinCall(ctx, c, builtin, args)
+	}
+
+	for closure := ctx.Closure; closure != nil; closure = closure.Parent {
+		newClosure, ok := closure.Defs[c.Name]
+		if ok {
+			return evalFunctionCall(ctx, c, newClosure, args)
 		}
-
-		value, err := function(args...)
-		if err != nil {
-			fmt.Println(err)
-			ctx.debug("Failed to call function")
-			panic(lexer.Errorf(c.Pos, "call to %s() failed", c.Name))
-		}
-		return value, nil
 	}
-
-	if len(ctx.Stack) > STACK_LIMIT {
-		panic("Stack limit exceeded")
-	}
-
-	// update globals
-	for k := range ctx.Globals {
-		ctx.Globals[k] = ctx.Vars[k]
-	}
-	// push a variable context
-	newVars := map[string]interface{}{}
-	for k, v := range ctx.Vars {
-		newVars[k] = v
-	}
-	ctx.Stack = append(ctx.Stack, ContextLevel{
-		Function: ctx.Function,
-		Vars:     newVars,
-	})
-	// clear the variables
-	ctx.Vars = map[string]interface{}{}
-	// add the global vars
-	for k, v := range ctx.Globals {
-		ctx.Vars[k] = v
-	}
-	ctx.Function = c.Name
-
-	// ctx.debug(fmt.Sprintf("BEFORE call to %s", c.Name))
-
-	// push the function params
-	if len(fun.Params) != len(args) {
-		return nil, lexer.Errorf(c.Pos, "Not all function params given in call to %s", c.Name)
-	}
-	for index := 0; index < len(fun.Params); index++ {
-		ctx.Vars[fun.Params[index]] = args[index]
-	}
-
-	// a defined function
-	// fmt.Println("Calling def", c.Name)
-	value, err := fun.Evaluate(ctx)
-	if err != nil {
-		fmt.Println(err)
-		ctx.debug("Failed to call function")
-		panic(lexer.Errorf(c.Pos, "call to %s() failed", c.Name))
-	}
-
-	// update globals
-	for k := range ctx.Globals {
-		ctx.Globals[k] = ctx.Vars[k]
-	}
-	// pop  the stack and restore Vars
-	ctx.Function = ctx.Stack[len(ctx.Stack)-1].Function
-	ctx.Vars = map[string]interface{}{}
-	for k, v := range ctx.Stack[len(ctx.Stack)-1].Vars {
-		ctx.Vars[k] = v
-	}
-	// update vars to globals
-	for k := range ctx.Globals {
-		ctx.Vars[k] = ctx.Globals[k]
-	}
-	ctx.Stack = ctx.Stack[:len(ctx.Stack)-1]
-	// ctx.debug(fmt.Sprintf("AFTER call to %s", c.Name))
-
-	return value, err
-
+	return nil, lexer.Errorf(c.Pos, "Unknown function %s()", c.Name)
 }
 
 func (cmd *Let) Evaluate(ctx *Context) (interface{}, error) {
@@ -394,7 +381,16 @@ func (cmd *Let) Evaluate(ctx *Context) (interface{}, error) {
 		return nil, err
 	}
 	if cmd.Variable != nil {
-		ctx.Vars[*cmd.Variable] = value
+		for c := ctx.Closure; c != nil; c = c.Parent {
+			_, ok := c.Vars[*cmd.Variable]
+			if ok {
+				// existing var
+				c.Vars[*cmd.Variable] = value
+				return nil, nil
+			}
+		}
+		// new var
+		ctx.Closure.Vars[*cmd.Variable] = value
 	} else if cmd.ArrayElement != nil {
 		currentValue, err := cmd.ArrayElement.Variable.Evaluate(ctx)
 		if err != nil {
@@ -454,6 +450,11 @@ func (cmd *Command) Evaluate(ctx *Context) (interface{}, error) {
 
 	case cmd.Let != nil:
 		_, err := cmd.Let.Evaluate(ctx)
+		if err != nil {
+			return nil, err
+		}
+	case cmd.Fun != nil:
+		_, err := cmd.Fun.Evaluate(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -574,8 +575,14 @@ func (ifcommand *If) Evaluate(ctx *Context) (interface{}, error) {
 }
 
 func (fun *Fun) Evaluate(ctx *Context) (interface{}, error) {
-	// fmt.Println("Running function:", fun.Name)
-	return evalBlock(ctx, fun.Commands)
+	ctx.Closure.Defs[fun.Name] = &Closure{
+		Fun:      fun,
+		Vars:     map[string]interface{}{},
+		Defs:     map[string]*Closure{},
+		Function: fun.Name,
+		Parent:   ctx.Closure,
+	}
+	return nil, nil
 }
 
 func (program *Program) Evaluate() error {
@@ -583,25 +590,22 @@ func (program *Program) Evaluate() error {
 		return nil
 	}
 
-	ctx := &Context{
-		Stack:    []ContextLevel{},
-		Consts:   map[string]interface{}{},
+	global := &Closure{
+		Function: "global",
+		Fun:      nil,
 		Vars:     map[string]interface{}{},
-		Globals:  map[string]interface{}{},
-		Function: "",
+		Defs:     map[string]*Closure{},
+		Parent:   nil,
+	}
+	ctx := &Context{
+		Consts:   map[string]interface{}{},
 		Builtins: Builtins(),
-		Defs:     map[string]*Fun{},
+		Closure:  global,
 	}
 
-	// find main
-	var main *Fun
+	// define constants and globals
 	for i := 0; i < len(program.TopLevel); i++ {
-		if program.TopLevel[i].Fun != nil {
-			ctx.Defs[program.TopLevel[i].Fun.Name] = program.TopLevel[i].Fun
-			if program.TopLevel[i].Fun.Name == "main" {
-				main = program.TopLevel[i].Fun
-			}
-		} else if program.TopLevel[i].Const != nil {
+		if program.TopLevel[i].Const != nil {
 			value, err := program.TopLevel[i].Const.Value.Evaluate(ctx)
 			if err != nil {
 				return err
@@ -612,31 +616,34 @@ func (program *Program) Evaluate() error {
 			if err != nil {
 				return err
 			}
-			// now copy Vars to Globals
-			for k, v := range ctx.Vars {
-				ctx.Globals[k] = v
+		}
+	}
+
+	// define functions
+	for i := 0; i < len(program.TopLevel); i++ {
+		if program.TopLevel[i].Fun != nil {
+			_, err := program.TopLevel[i].Fun.Evaluate(ctx)
+			if err != nil {
+				return err
 			}
 		}
 	}
-	if main == nil {
-		panic("No main function found.")
+
+	_, ok := ctx.Closure.Defs["main"]
+	if !ok {
+		return fmt.Errorf("no main function found")
 	}
 
-	// fmt.Println("======================================")
-	// repr.Println(ctx)
-	// fmt.Println("======================================")
-
-	ctx.Function = "main"
-	_, err := main.Evaluate(ctx)
+	// Call main()
+	call := &Call{
+		Name: "main",
+		Args: []*Expression{},
+	}
+	_, err := call.Evaluate(ctx)
 	if err != nil {
 		ctx.debug("Main error")
 		return err
 	}
-	// fmt.Println("Final program value: ", value)
-
-	// fmt.Println("======================================")
-	// repr.Println(ctx.Vars)
-	// fmt.Println("======================================")
 
 	return nil
 }

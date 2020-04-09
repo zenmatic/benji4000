@@ -47,6 +47,7 @@ type Command struct {
 	Return *Return `  | @@ ";" `
 	If     *If     `  | @@ `
 	While  *While  `  | @@ `
+	Fun    *Fun    `  | @@ `
 	Call   *Call   `  | @@ ";" )`
 }
 

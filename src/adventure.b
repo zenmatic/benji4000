@@ -201,8 +201,7 @@ def main() {
         print(ROOMS[current_room]);
         i := 0;
         while(i < len(object_locations[current_room])) {
-            obj := OBJECTS[object_locations[current_room][i]];
-            print("There is " + obj["description"] + " here.");
+            print("There is " + OBJECTS[object_locations[current_room][i]]["description"] + " here.");
             i := i + 1;
         }
         print("");

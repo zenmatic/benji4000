@@ -1,4 +1,5 @@
 def b(x) {
+    debug("in b");
     x := x * 2;
     print("x in b:");
     print(x);
@@ -6,6 +7,7 @@ def b(x) {
 }
 
 def a(x) {
+    debug("in a");
     x := x * x;
     print("x in a:");
     print(x);
@@ -19,7 +21,10 @@ def main() {
 
     # do some math
     x := 2 * (7 - 2);
-    x := a(x);
+    print("x=" + x);
+    debug("before");
+    a(x);
+    debug("after");
 
     # show it
     print("x is currently:");
