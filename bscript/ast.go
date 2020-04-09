@@ -81,7 +81,13 @@ type Remark struct {
 type Call struct {
 	Pos lexer.Position
 
-	Name string        `@Ident`
+	Name       string        `@Ident`
+	CallParams []*CallParams `( @@ )+`
+}
+
+type CallParams struct {
+	Pos lexer.Position
+
 	Args []*Expression `"(" [ @@ { "," @@ } ] ")"`
 }
 

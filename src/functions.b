@@ -5,14 +5,26 @@ def double(n) {
 }
 
 def triple(n) {
-
     def mul(m) {
         return n * m;
     }
-
     return mul(3);
 }
 
+def multiply(n) {
+    def inner(m) {
+        return n * m;
+    }
+    return inner;
+}
+
+def map(fx, array) {
+    i := 0;
+    while(i < len(array)) {
+        array[i] := fx(array[i]);
+        i := i + 1;
+    }
+}
 
 def main() {
     # call a function
@@ -22,4 +34,17 @@ def main() {
     # call an embedded function
     y := triple(2);
     print("y=" + y);
+
+    # function references
+    five_x := multiply(5);
+    print("5 * 6=" + five_x(6));
+
+    # double parens
+    print("4 * 6=" + multiply(4)(6));
+
+    # map
+    a := [1, 2, 3, 4, 5];
+    print("a=" + a);
+    map(double, a);
+    print("doubled a=" + a);
 }

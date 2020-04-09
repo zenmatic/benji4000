@@ -140,6 +140,10 @@ func (v *Variable) Evaluate(ctx *Context) (interface{}, error) {
 		if ok {
 			return value, nil
 		}
+		def, ok := closure.Defs[v.Variable]
+		if ok {
+			return def, nil
+		}
 	}
 	return nil, lexer.Errorf(v.Pos, "unknown variable %q", v.Variable)
 }
@@ -306,7 +310,7 @@ func (ctx *Context) debug(message string) {
 	fmt.Println("Runtime Stack:")
 	indent = ""
 	for _, runtime := range ctx.RuntimeStack {
-		fmt.Printf("%s Call %s at %s Vars=%s\n", indent, runtime.Function, runtime.Pos, runtime.Vars)
+		fmt.Printf("%s %s at %s Vars=%s\n", indent, runtime.Function, runtime.Pos, runtime.Vars)
 		indent = indent + "  "
 	}
 	fmt.Println("====================================")
@@ -368,28 +372,83 @@ func evalFunctionCall(ctx *Context, c *Call, closure *Closure, args []interface{
 	return value, err
 }
 
-func (c *Call) Evaluate(ctx *Context) (interface{}, error) {
+func (closure *Closure) findClosure(name string) (*Closure, bool) {
+	// a defined function
+	fx, ok := closure.Defs[name]
+	if ok {
+		return fx, ok
+	}
+
+	// variable pointing to a function
+	variable, ok := closure.Vars[name]
+	if ok {
+		fx, ok = variable.(*Closure)
+		if ok {
+			return fx, true
+		}
+	}
+
+	return nil, false
+}
+
+func (callParams *CallParams) evalParams(ctx *Context) ([]interface{}, error) {
 	args := []interface{}{}
-	for _, arg := range c.Args {
+	for _, arg := range callParams.Args {
 		value, err := arg.Evaluate(ctx)
 		if err != nil {
 			return nil, err
 		}
 		args = append(args, value)
 	}
+	return args, nil
+}
 
+func (c *Call) Evaluate(ctx *Context) (interface{}, error) {
+	args, err := c.CallParams[0].evalParams(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// call builtin function
 	builtin, ok := ctx.Builtins[c.Name]
 	if ok {
 		return evalBuiltinCall(ctx, c, builtin, args)
 	}
 
+	// call function the first time
+	var result interface{}
+	var fx *Closure
 	for closure := ctx.Closure; closure != nil; closure = closure.Parent {
-		newClosure, ok := closure.Defs[c.Name]
+		// a defined function
+		fx, ok = closure.findClosure(c.Name)
 		if ok {
-			return evalFunctionCall(ctx, c, newClosure, args)
+			result, err = evalFunctionCall(ctx, c, fx, args)
+			if err != nil {
+				return nil, err
+			}
+			break
 		}
 	}
-	return nil, lexer.Errorf(c.Pos, "Unknown function %s()", c.Name)
+	if fx == nil {
+		return nil, lexer.Errorf(c.Pos, "Unknown function %s()", c.Name)
+	}
+
+	// subsequent function calls
+	for i := 1; i < len(c.CallParams); i++ {
+		args, err := c.CallParams[i].evalParams(ctx)
+		if err != nil {
+			return nil, err
+		}
+		fx, ok := result.(*Closure)
+		if !ok {
+			return nil, lexer.Errorf(c.Pos, "Function call references non-function variable: %v", result)
+		}
+		result, err = evalFunctionCall(ctx, c, fx, args)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return result, nil
 }
 
 func (cmd *Let) Evaluate(ctx *Context) (interface{}, error) {
@@ -656,7 +715,11 @@ func (program *Program) Evaluate() error {
 	// Call main()
 	call := &Call{
 		Name: "main",
-		Args: []*Expression{},
+		CallParams: []*CallParams{
+			&CallParams{
+				Args: []*Expression{},
+			},
+		},
 	}
 	_, err := call.Evaluate(ctx)
 	if err != nil {
