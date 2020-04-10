@@ -27,15 +27,11 @@ def map(fx, array) {
 }
 
 def double2() {
-    return (x) => { 
-        return x * 2; 
-    };
+    return x => x * 2;
 }
 
 def f(n) {
-    return (m) => {
-        return n + m;
-    };
+    return m => n + m;
 }
 
 def f2(n) {
@@ -79,6 +75,16 @@ def main() {
     }, a);
     assert(a, [3, 5, 7, 9, 11]);
     print("added 1 to a=" + a);
+
+    # single-line anonymous function
+    map(n => { return n + 1; }, a);
+    assert(a, [4, 6, 8, 10, 12]);
+    print("added 1 again to a=" + a);
+
+    # even simpler single-line anonymous function
+    map(n => n + 1, a);
+    assert(a, [5, 7, 9, 11, 13]);
+    print("and again, added 1 to a=" + a);
 
     # anon function returned
     anon := double2();

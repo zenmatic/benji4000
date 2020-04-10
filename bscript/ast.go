@@ -41,8 +41,10 @@ type Fun struct {
 type AnonFun struct {
 	Pos lexer.Position
 
-	Params   []string   ` "(" ( @Ident ( "," @Ident )* )* ")" "=" ">"`
-	Commands []*Command `"{" ( @@ )* "}"`
+	Params        []string    `( "(" ( @Ident ( "," @Ident )* )* ")" "=" ">"`
+	SingleParam   *string     `| @Ident "=" ">" )`
+	Commands      []*Command  `( "{" ( @@ )* "}"`
+	SingleCommand *Expression `| @@ )`
 }
 
 type Command struct {

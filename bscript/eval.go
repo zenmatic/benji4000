@@ -682,7 +682,27 @@ func (fun *Fun) Evaluate(ctx *Context) (interface{}, error) {
 func (anonFun *AnonFun) Evaluate(ctx *Context) (interface{}, error) {
 	name := fmt.Sprintf("_anon_%d", ANON_COUNT)
 	ANON_COUNT++
-	return makeClosure(ctx, name, anonFun.Params, anonFun.Commands), nil
+	var params []string
+	if anonFun.SingleParam != nil {
+		params = []string{*anonFun.SingleParam}
+	} else {
+		params = anonFun.Params
+	}
+	var commands []*Command
+	if anonFun.SingleCommand != nil {
+		commands = []*Command{
+			&Command{
+				Pos: anonFun.Pos,
+				Return: &Return{
+					Pos:   anonFun.Pos,
+					Value: anonFun.SingleCommand,
+				},
+			},
+		}
+	} else {
+		commands = anonFun.Commands
+	}
+	return makeClosure(ctx, name, params, commands), nil
 }
 
 func (program *Program) Evaluate() (interface{}, error) {
