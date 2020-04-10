@@ -125,6 +125,7 @@ type Value struct {
 	Array         *Array        ` @@`
 	Map           *Map          `| @@`
 	AnonFun       *AnonFun      `| @@`
+	Null          *string       `| @"null"`
 	Number        *float64      `| @Number`
 	Call          *Call         `| @@`
 	ArrayElement  *ArrayElement `| @@`

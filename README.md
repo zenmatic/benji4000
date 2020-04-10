@@ -30,6 +30,8 @@ The programming language of benji. Execution starts by calling the function name
    - substr: substring, for example: `substr("Hello World", 1, 2)` prints "el"
    - print: print strings + variables
    - input: ask for user input
+   - debug: print closures and stack trace
+   - assert: assertion testing
 - first class functions: `def f(x) { return 2; } x := f;`
    - functions as parameters
    - anonymous functions: `def f(x) { return (n) => { return x + n; }; }`

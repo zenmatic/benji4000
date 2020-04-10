@@ -49,35 +49,44 @@ def f2(n) {
 def main() {
     # call a function
     x := double(2);
+    assert(x, 4);
     print("x=" + x);
 
     # call an embedded function
     y := triple(2);
+    assert(y, 6);
     print("y=" + y);
 
     # function references
     five_x := multiply(5);
+    assert(five_x(6), 30);
     print("5 * 6=" + five_x(6));
 
     # double parens
+    assert(multiply(4)(6), 24);
     print("4 * 6=" + multiply(4)(6));
 
     # map
     a := [1, 2, 3, 4, 5];
     print("a=" + a);
     map(double, a);
+    assert(a, [2, 4, 6, 8, 10]);
     print("doubled a=" + a);
 
     # anonymous functions (function literals)
     map((n) => {
         return n + 1;
     }, a);
+    assert(a, [3, 5, 7, 9, 11]);
     print("added 1 to a=" + a);
 
     # anon function returned
     anon := double2();
+    assert(anon(5), 10);
     print("2 * 5=" + anon(5));
 
+    assert(f(2)(3), 5);
     print("anonymous function with closure: f(2)(3)=" + f(2)(3));
+    assert(f2(2)(3), 6);
     print("anonymous function with closure, example 2: f2(2)(3)=" + f2(2)(3));
 }

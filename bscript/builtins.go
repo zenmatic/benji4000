@@ -77,6 +77,69 @@ func debug(ctx *Context, arg ...interface{}) (interface{}, error) {
 	return nil, nil
 }
 
+func assert(ctx *Context, arg ...interface{}) (interface{}, error) {
+	a := arg[0]
+	b := arg[1]
+	msg := "Incorrect value"
+	if len(arg) > 2 {
+		msg = arg[2].(string)
+	}
+
+	var res bool
+
+	// for arrays, compare the values
+	arr, ok := a.(*[]interface{})
+	if ok {
+		// array
+		brr, ok := b.(*[]interface{})
+		if !ok {
+			res = true
+		} else {
+			if len(*arr) == len(*brr) {
+				res = false
+				for i := range *arr {
+					if (*arr)[i] != (*brr)[i] {
+						res = true
+						break
+					}
+				}
+			} else {
+				res = true
+			}
+		}
+	} else {
+		// map
+		amap, ok := a.(map[string]interface{})
+		if ok {
+			bmap, ok := b.(map[string]interface{})
+			if !ok {
+				res = true
+			} else {
+				if len(amap) == len(bmap) {
+					res = false
+					for k := range amap {
+						if amap[k] != bmap[k] {
+							res = true
+							break
+						}
+					}
+				} else {
+					res = true
+				}
+			}
+		} else {
+			// default is to compare equality
+			res = a != b
+		}
+	}
+
+	if res {
+		debug(ctx, fmt.Sprintf("Assertion failure: %s: %v != %v", msg, a, b))
+		return nil, fmt.Errorf("%s Assertion failure: %s: %v != %v", ctx.Pos, msg, a, b)
+	}
+	return nil, nil
+}
+
 func Builtins() map[string]Builtin {
 	return map[string]Builtin{
 		"print":  print,
@@ -85,5 +148,6 @@ func Builtins() map[string]Builtin {
 		"keys":   keys,
 		"substr": substr,
 		"debug":  debug,
+		"assert": assert,
 	}
 }

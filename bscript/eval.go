@@ -49,12 +49,16 @@ type Context struct {
 	Closure *Closure
 	// the runtime stack
 	RuntimeStack []Runtime
+	// the current position
+	Pos lexer.Position
 }
 
 func (v *Value) Evaluate(ctx *Context) (interface{}, error) {
 	switch {
 	case v.Number != nil:
 		return *v.Number, nil
+	case v.Null != nil:
+		return nil, nil
 	case v.Map != nil:
 		m := make(map[string]interface{})
 		if v.Map.LeftNameValuePair != nil {
@@ -313,12 +317,14 @@ func (ctx *Context) debug(message string) {
 		indent = indent + "  "
 	}
 	fmt.Println("------------------------------------")
-	fmt.Println("Runtime Stack:")
+	fmt.Println("Runtime Call Stack:")
 	indent = ""
 	for _, runtime := range ctx.RuntimeStack {
 		fmt.Printf("%s %s at %s Vars=%s\n", indent, runtime.Function, runtime.Pos, runtime.Vars)
 		indent = indent + "  "
 	}
+	fmt.Println("------------------------------------")
+	fmt.Printf("Currently: %s\n", ctx.Pos)
 	fmt.Println("====================================")
 }
 
@@ -328,17 +334,15 @@ func evalBuiltinCall(ctx *Context, c *Call, builtin Builtin, args []interface{})
 
 	value, err := builtin(ctx, args...)
 	if err != nil {
-		fmt.Println(err)
-		ctx.debug("Failed to call function")
-		panic(lexer.Errorf(c.Pos, "call to %s() failed", c.Name))
+		return nil, err
 	}
 	return value, nil
 }
 
 func evalFunctionCall(ctx *Context, c *Call, closure *Closure, args []interface{}) (interface{}, error) {
-	// if len(ctx.Stack) > STACK_LIMIT {
-	// 	panic("Stack limit exceeded")
-	// }
+	if len(ctx.RuntimeStack) > STACK_LIMIT {
+		panic("Stack limit exceeded")
+	}
 
 	// save local variables (needed when a recursive call modifies the closure's variables)
 	saved := make(map[string]interface{}, len(ctx.Closure.Vars))
@@ -364,7 +368,7 @@ func evalFunctionCall(ctx *Context, c *Call, closure *Closure, args []interface{
 	// make the call (evaluate the function's code)
 	value, err := evalBlock(ctx, closure.Commands)
 	if err != nil {
-		return nil, lexer.Errorf(c.Pos, "call to %s() failed: %s", c.Name, err)
+		return nil, err
 	}
 
 	// restore local vars and environment
@@ -528,6 +532,8 @@ func (cmd *Let) Evaluate(ctx *Context) (interface{}, error) {
 }
 
 func (cmd *Command) Evaluate(ctx *Context) (interface{}, error) {
+	ctx.Pos = cmd.Pos
+
 	switch {
 	case cmd.Remark != nil:
 
@@ -679,9 +685,9 @@ func (anonFun *AnonFun) Evaluate(ctx *Context) (interface{}, error) {
 	return makeClosure(ctx, name, anonFun.Params, anonFun.Commands), nil
 }
 
-func (program *Program) Evaluate() error {
+func (program *Program) Evaluate() (interface{}, error) {
 	if len(program.TopLevel) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	global := &Closure{
@@ -697,6 +703,7 @@ func (program *Program) Evaluate() error {
 		Builtins:     Builtins(),
 		Closure:      global,
 		RuntimeStack: []Runtime{},
+		Pos:          lexer.Position{},
 	}
 
 	// define constants and globals
@@ -704,13 +711,13 @@ func (program *Program) Evaluate() error {
 		if program.TopLevel[i].Const != nil {
 			value, err := program.TopLevel[i].Const.Value.Evaluate(ctx)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			ctx.Consts[program.TopLevel[i].Const.Name] = value
 		} else if program.TopLevel[i].Let != nil {
 			_, err := program.TopLevel[i].Let.Evaluate(ctx)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 	}
@@ -720,14 +727,14 @@ func (program *Program) Evaluate() error {
 		if program.TopLevel[i].Fun != nil {
 			_, err := program.TopLevel[i].Fun.Evaluate(ctx)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 	}
 
 	_, ok := ctx.Closure.Defs["main"]
 	if !ok {
-		return fmt.Errorf("no main function found")
+		return nil, fmt.Errorf("no main function found")
 	}
 
 	// Call main()
@@ -739,13 +746,8 @@ func (program *Program) Evaluate() error {
 			},
 		},
 	}
-	_, err := call.Evaluate(ctx)
-	if err != nil {
-		ctx.debug("Main error")
-		return err
-	}
-
-	return nil
+	result, err := call.Evaluate(ctx)
+	return result, err
 }
 
 func evaluateFloats(ctx *Context, lhs interface{}, rhsExpr Evaluatable) (float64, float64, error) {

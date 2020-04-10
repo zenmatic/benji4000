@@ -31,7 +31,7 @@ func main() {
 		fmt.Println(">>>>>>>>>>>>>>>>>>>>>>>>>>")
 	} else {
 		// run it
-		err = ast.Evaluate()
+		_, err = ast.Evaluate()
 		if err != nil {
 			fmt.Println("Error running program:", err)
 		}
