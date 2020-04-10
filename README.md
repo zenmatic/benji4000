@@ -35,6 +35,7 @@ The programming language of benji. Execution starts by calling the function name
 - first class functions: `def f(x) { return 2; } x := f;`
    - functions as parameters
    - anonymous functions: `def f(x) { return (n) => { return x + n; }; }`
+   - and in short form: `def f(x) { return n => x + n; }`
    
 ## Coming soon:
 - boolean operators (and, or, not)
