@@ -3,6 +3,8 @@ package bscript
 import (
 	"fmt"
 	"math"
+	"os"
+	"strings"
 
 	"github.com/alecthomas/participle/lexer"
 	"github.com/alecthomas/repr"
@@ -17,6 +19,10 @@ type Evaluatable interface {
 }
 
 type Builtin func(ctx *Context, args ...interface{}) (interface{}, error)
+
+func (c *Closure) String() string {
+	return fmt.Sprintf("%s(%s)", c.Function, strings.Join(c.Params, ","))
+}
 
 type Closure struct {
 	// function defition: params
@@ -51,6 +57,8 @@ type Context struct {
 	RuntimeStack []Runtime
 	// the current position
 	Pos lexer.Position
+	// the program
+	Program *Program
 }
 
 func (v *Value) Evaluate(ctx *Context) (interface{}, error) {
@@ -305,27 +313,29 @@ func (e *Expression) Evaluate(ctx *Context) (interface{}, error) {
 }
 
 func (ctx *Context) debug(message string) {
-	fmt.Println("====================================")
 	fmt.Println(message)
-	indent := ""
+	indent := "  "
+	fmt.Println("Constants:")
+	for k, v := range ctx.Consts {
+		fmt.Printf("  %s=%v\n", k, v)
+	}
 	fmt.Println("Closures:")
 	for closure := ctx.Closure; closure != nil; closure = closure.Parent {
 		fmt.Println("-----------------")
-		fmt.Printf("%s Function: %s\n", indent, closure.Function)
-		fmt.Printf("%s Vars: %v\n", indent, closure.Vars)
-		fmt.Printf("%s Defs: %v\n", indent, closure.Defs)
+		fmt.Printf("%sFunction: %s\n", indent, closure.Function)
+		fmt.Printf("%sVars: %v\n", indent, closure.Vars)
+		fmt.Printf("%sDefs: %v\n", indent, closure.Defs)
 		indent = indent + "  "
 	}
 	fmt.Println("------------------------------------")
 	fmt.Println("Runtime Call Stack:")
-	indent = ""
+	indent = "  "
 	for _, runtime := range ctx.RuntimeStack {
-		fmt.Printf("%s %s at %s Vars=%s\n", indent, runtime.Function, runtime.Pos, runtime.Vars)
+		fmt.Printf("%s%s at %s Vars=%s\n", indent, runtime.Function, runtime.Pos, runtime.Vars)
 		indent = indent + "  "
 	}
 	fmt.Println("------------------------------------")
 	fmt.Printf("Currently: %s\n", ctx.Pos)
-	fmt.Println("====================================")
 }
 
 func evalBuiltinCall(ctx *Context, c *Call, builtin Builtin, args []interface{}) (interface{}, error) {
@@ -531,87 +541,35 @@ func (cmd *Let) Evaluate(ctx *Context) (interface{}, error) {
 	return nil, nil
 }
 
+// Evaluate a Command.
+// some commands return a value which causes the exection of a block to stop (eg. return, while, if)
 func (cmd *Command) Evaluate(ctx *Context) (interface{}, error) {
 	ctx.Pos = cmd.Pos
 
 	switch {
 	case cmd.Remark != nil:
-
+		return nil, nil
 	case cmd.Let != nil:
 		_, err := cmd.Let.Evaluate(ctx)
-		if err != nil {
-			return nil, err
-		}
+		return nil, err
 	case cmd.Fun != nil:
 		_, err := cmd.Fun.Evaluate(ctx)
-		if err != nil {
-			return nil, err
-		}
+		return nil, err
 	case cmd.Del != nil:
-		cmd := cmd.Del
-		if cmd.ArrayElement != nil {
-			currentValue, err := cmd.ArrayElement.Variable.Evaluate(ctx)
-			if err != nil {
-				return nil, err
-			}
-
-			for arrayIndexIndex, arrayIndex := range cmd.ArrayElement.Indexes {
-				ivalue, err := arrayIndex.Index.Evaluate(ctx)
-				if err != nil {
-					return nil, err
-				}
-
-				lastElement := arrayIndexIndex == len(cmd.ArrayElement.Indexes)-1
-
-				a, ok := currentValue.(*[]interface{})
-				if ok {
-					// it's an array
-					index := (int)(ivalue.(float64))
-					if index < 0 || index >= len(*a) {
-						return nil, lexer.Errorf(cmd.Pos, "Index out of bounds")
-					}
-					if lastElement {
-						*a = append((*a)[:index], (*a)[index+1:]...)
-					} else {
-						currentValue = (*a)[index]
-					}
-				} else {
-					m, ok := currentValue.(map[string]interface{})
-					if ok {
-						key := ivalue.(string)
-						if lastElement {
-							delete(m, key)
-						} else {
-							currentValue = m[key]
-						}
-					} else {
-						return nil, lexer.Errorf(cmd.Pos, "Invalid array element: should be an array or a map")
-					}
-				}
-			}
-		} else {
-			// in the future, del can take other types (map, maybe struct, etc)
-			return nil, lexer.Errorf(cmd.Pos, "can't delete this type of expression")
-		}
+		_, err := cmd.Del.Evaluate(ctx)
+		return nil, err
 	case cmd.Return != nil:
-		cmd := cmd.Return
-		value, err := cmd.Value.Evaluate(ctx)
-		return value, err
+		return cmd.Return.Value.Evaluate(ctx)
 	case cmd.Call != nil:
 		_, err := cmd.Call.Evaluate(ctx)
-		if err != nil {
-			return nil, err
-		}
+		return nil, err
 	case cmd.If != nil:
-		value, err := cmd.If.Evaluate(ctx)
-		return value, err
+		return cmd.If.Evaluate(ctx)
 	case cmd.While != nil:
-		value, err := cmd.While.Evaluate(ctx)
-		return value, err
+		return cmd.While.Evaluate(ctx)
 	default:
 		panic("unsupported command " + repr.String(cmd))
 	}
-	return nil, nil
 }
 
 func evalBlock(ctx *Context, commands []*Command) (interface{}, error) {
@@ -626,6 +584,54 @@ func evalBlock(ctx *Context, commands []*Command) (interface{}, error) {
 		}
 		// ctx.debug("debug")
 		index++
+	}
+	return nil, nil
+}
+
+func (cmd *Del) Evaluate(ctx *Context) (interface{}, error) {
+	if cmd.ArrayElement != nil {
+		currentValue, err := cmd.ArrayElement.Variable.Evaluate(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		for arrayIndexIndex, arrayIndex := range cmd.ArrayElement.Indexes {
+			ivalue, err := arrayIndex.Index.Evaluate(ctx)
+			if err != nil {
+				return nil, err
+			}
+
+			lastElement := arrayIndexIndex == len(cmd.ArrayElement.Indexes)-1
+
+			a, ok := currentValue.(*[]interface{})
+			if ok {
+				// it's an array
+				index := (int)(ivalue.(float64))
+				if index < 0 || index >= len(*a) {
+					return nil, lexer.Errorf(cmd.Pos, "Index out of bounds")
+				}
+				if lastElement {
+					*a = append((*a)[:index], (*a)[index+1:]...)
+				} else {
+					currentValue = (*a)[index]
+				}
+			} else {
+				m, ok := currentValue.(map[string]interface{})
+				if ok {
+					key := ivalue.(string)
+					if lastElement {
+						delete(m, key)
+					} else {
+						currentValue = m[key]
+					}
+				} else {
+					return nil, lexer.Errorf(cmd.Pos, "Invalid array element: should be an array or a map")
+				}
+			}
+		}
+	} else {
+		// in the future, del can take other types (map, maybe struct, etc)
+		return nil, lexer.Errorf(cmd.Pos, "can't delete this type of expression")
 	}
 	return nil, nil
 }
@@ -705,11 +711,7 @@ func (anonFun *AnonFun) Evaluate(ctx *Context) (interface{}, error) {
 	return makeClosure(ctx, name, params, commands), nil
 }
 
-func (program *Program) Evaluate() (interface{}, error) {
-	if len(program.TopLevel) == 0 {
-		return nil, nil
-	}
-
+func CreateContext(program *Program) *Context {
 	global := &Closure{
 		Function: "global",
 		Params:   []string{},
@@ -718,12 +720,66 @@ func (program *Program) Evaluate() (interface{}, error) {
 		Defs:     map[string]*Closure{},
 		Parent:   nil,
 	}
-	ctx := &Context{
+	return &Context{
 		Consts:       map[string]interface{}{},
 		Builtins:     Builtins(),
 		Closure:      global,
 		RuntimeStack: []Runtime{},
 		Pos:          lexer.Position{},
+		Program:      program,
+	}
+
+}
+
+func load(source string, showAst *bool) (*Program, error) {
+	r, err := os.Open(source)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+
+	ast := &Program{}
+	Parser.Parse(r, ast)
+	if showAst != nil && *showAst {
+		// print the ast
+		repr.Println(ast)
+		return nil, nil
+	}
+	return ast, nil
+}
+
+func Load(source string, showAst *bool, ctx *Context) (interface{}, error) {
+	ast, err := load(source, showAst)
+	if err != nil {
+		return nil, err
+	}
+	return ast.init(ctx)
+}
+
+func Run(source string, showAst *bool, ctx *Context) (interface{}, error) {
+	// run it
+	ast, err := load(source, showAst)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, err = ast.init(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return ast.Evaluate(ctx)
+}
+
+func (program *Program) init(ctx *Context) (*Context, error) {
+	if ctx == nil {
+		ctx = CreateContext(program)
+	}
+
+	ctx.Program = program
+
+	if len(program.TopLevel) == 0 {
+		return ctx, nil
 	}
 
 	// define constants and globals
@@ -731,13 +787,13 @@ func (program *Program) Evaluate() (interface{}, error) {
 		if program.TopLevel[i].Const != nil {
 			value, err := program.TopLevel[i].Const.Value.Evaluate(ctx)
 			if err != nil {
-				return nil, err
+				return ctx, err
 			}
 			ctx.Consts[program.TopLevel[i].Const.Name] = value
 		} else if program.TopLevel[i].Let != nil {
 			_, err := program.TopLevel[i].Let.Evaluate(ctx)
 			if err != nil {
-				return nil, err
+				return ctx, err
 			}
 		}
 	}
@@ -747,15 +803,20 @@ func (program *Program) Evaluate() (interface{}, error) {
 		if program.TopLevel[i].Fun != nil {
 			_, err := program.TopLevel[i].Fun.Evaluate(ctx)
 			if err != nil {
-				return nil, err
+				return ctx, err
 			}
 		}
 	}
 
 	_, ok := ctx.Closure.Defs["main"]
 	if !ok {
-		return nil, fmt.Errorf("no main function found")
+		return ctx, fmt.Errorf("no main function found")
 	}
+
+	return ctx, nil
+}
+
+func (program *Program) Evaluate(ctx *Context) (interface{}, error) {
 
 	// Call main()
 	call := &Call{

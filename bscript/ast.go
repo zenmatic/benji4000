@@ -245,4 +245,12 @@ var (
 		participle.UseLookahead(2),
 		participle.Elide("Whitespace"),
 	)
+
+	CommandParser = participle.MustBuild(&Command{},
+		participle.Lexer(benjiLexer),
+		participle.CaseInsensitive("Ident"),
+		participle.Unquote("String"),
+		participle.UseLookahead(2),
+		participle.Elide("Whitespace"),
+	)
 )
