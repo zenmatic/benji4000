@@ -1,11 +1,6 @@
 ############################################
 # a pick-a-path adventure: it's a rock concert; what could go wrong?
 
-# TODO:
-##
-# add var like LOGO into text
-##
-
 # room indexes (enum)
 const NULL = 0;
 const HOME = 1;
@@ -54,7 +49,7 @@ const SCENARIOS = [
                 "desc": "",
                 "choices": [],
                 "dests": [],
-                "answer": ""
+                "answer": 0
         },
         {
                 "index": HOME,
@@ -62,7 +57,7 @@ const SCENARIOS = [
                 "desc": "You've been stoked for weeks about this concert.  Your favorite band, Plague Puke, is playing at the notorious underground club, The Spike.  You're dressing for the show, standing in front of your closet in your tighty whiteys.  You have a bunch of jackets in there.  Your mama pain-stakingly stitched a band's logo on each one.  Which one do you choose?",
                 "choices": LOGOS,
                 "dests": [],
-                "answer": ""
+                "answer": 0
         },
         {
                 "index": PICK_JACKET,
@@ -70,7 +65,7 @@ const SCENARIOS = [
                 "desc": "You don the jacket with the LOGO logo and catch the bus to downtown.",
                 "choices": [],
                 "dests": [],
-                "answer": ""
+                "answer": 0
         },
         {
                 "index": CLUB,
@@ -78,7 +73,7 @@ const SCENARIOS = [
                 "desc": "After some searching, you hear some muffled music in the distance and find The Spike in an alley off a main street.  You pay the cover to the bouncer with all the piercings and walk into the place.  The band is already playing loud and everyone is rocking.  There's a mosh pit to the left, a bar to the right, and a lounge straight ahead of you.",
                 "choices": [],
                 "dests": [],
-                "answer": ""
+                "answer": 0
         },
         {
                 "index": WHERE_TO_GO,
@@ -86,7 +81,7 @@ const SCENARIOS = [
                 "desc": "Where do you go?",
                 "choices": ["the mosh pit", "the grungy lounge", "the bar"],
                 "dests": [MOSH_PIT, LOUNGE, BAR],
-                "answer": ""
+                "answer": 0
         },
         {
                 "index": MOSH_PIT,
@@ -94,7 +89,7 @@ const SCENARIOS = [
                 "desc": "You head into the mosh pit.  It's like falling into a pot of boiling water.  It's a free-for-all where you're not sure if peopel are dancing or fighting.  You feel like you need to do something other than just stand there.",
                 "choices": [],
                 "dests": [],
-                "answer": ""
+                "answer": 0
         },
         {
                 "index": LOUNGE,
@@ -102,7 +97,7 @@ const SCENARIOS = [
                 "desc": "You head into the lounge, if that's what you could call it.  You are greeted by a random assortment of chairs and couches most of which look like they have been left out on the street for a while.  There's also a dumpy stand at the edge, selling Plague t-shirts and hoodies.",
                 "choices": [],
                 "dests": [],
-                "answer": ""
+                "answer": 0
         },
         {
                 "index": BAR,
@@ -110,7 +105,7 @@ const SCENARIOS = [
                 "desc": "Yuck, you've seen gutters cleaner than this bar.  Before you can get away a middle-aged, balding bartender approaches and asks what you'll have.  The size of the bags under his eyes is disturbing, but you try not to focus on it.",
                 "choices": [],
                 "dests": [],
-                "answer": ""
+                "answer": 0
         },
         {
                 "index": DANCE_STYLE,
@@ -118,7 +113,7 @@ const SCENARIOS = [
                 "desc": "How do you want to dance?",
                 "choices": ["boy band moves", "the latest hip hop", "hardcore"],
                 "dests": [LIGHT, MEDIUM, HARDCORE],
-                "answer": ""
+                "answer": 0
         },
         {
                 "index": LOUNGE_DECISION,
@@ -126,7 +121,7 @@ const SCENARIOS = [
                 "desc": "What do you want to do?",
                 "choices": ["sit", "go to T-shirt stand", "order a drink"],
                 "dests": [SIT, T_SHIRT, ORDER_DRINK],
-                "answer": ""
+                "answer": 0
         },
         {
                 "index": COCKTAIL,
@@ -134,7 +129,7 @@ const SCENARIOS = [
                 "desc": "What do you order?",
                 "choices": ["a cosmo", "a beer", "a manhattan straight up"],
                 "dests": [COSMO, BEER, MANHATTAN],
-                "answer": ""
+                "answer": 0
         },
         {
                 "index": HARDCORE,
@@ -142,7 +137,7 @@ const SCENARIOS = [
                 "desc": "You let out a primodial scream and punch in every direction.  Your fist accidently connects with someone beside you.",
                 "choices": [],
                 "dests": [],
-                "answer": ""
+                "answer": 0
         },
         {
                 "index": LIGHT,
@@ -150,7 +145,7 @@ const SCENARIOS = [
                 "desc": "You do your best nsync impression and even attempt some moon walking.",
                 "choices": [],
                 "dests": [],
-                "answer": ""
+                "answer": 0
         },
         {
                 "index": MEDIUM,
@@ -158,7 +153,7 @@ const SCENARIOS = [
                 "desc": "First an MC Hammer impression, then the Robot, finally a little twerking.  You are quickly pushed from the pit by everyone around you.",
                 "choices": [],
                 "dests": [],
-                "answer": ""
+                "answer": 0
         },
         {
                 "index": SIT,
@@ -166,7 +161,7 @@ const SCENARIOS = [
                 "desc": "You sit down in one of he musty seats.  You kick up your shoes when you hear someone snarl behind you, <<Hey, man, that's my seat.  Get the fuck out of it!>>",
                 "choices": [],
                 "dests": [],
-                "answer": ""
+                "answer": 0
         },
         {
                 "index": T_SHIRT,
@@ -174,7 +169,7 @@ const SCENARIOS = [
                 "desc": "You go to the t-shirt stand and browse the wares.  The guy selling he stuff gives you the evil eye as you handle the merchandise.",
                 "choices": [],
                 "dests": [],
-                "answer": ""
+                "answer": 0
         },
         {
                 "index": ORDER_DRINK,
@@ -182,7 +177,7 @@ const SCENARIOS = [
                 "desc": "You sit down and order a drink from a woman nearby.  <<Fuck you>> she says <<do I look like a fucking waitress to you?>>  Embarrassed you head to the bar.",
                 "choices": [],
                 "dests": [],
-                "answer": ""
+                "answer": 0
         },
         {
                 "index": BEER,
@@ -190,7 +185,7 @@ const SCENARIOS = [
                 "desc": "<<Gimme a bud>> you say.  The bartender serves it and walks away.  You raise the beer to your lips when someone bumps you from behind.  You spill the beer all over.  A voice snarls behind you <<Hey, watch it, poser>>",
                 "choices": [],
                 "dests": [],
-                "answer": ""
+                "answer": 0
         },
         {
                 "index": COSMO,
@@ -198,15 +193,15 @@ const SCENARIOS = [
                 "desc": "The bartender smirks when you order a cosmo.  He fills a glass with ice and adds tequila, fruit punch, and a packet of sweet and low.  You're pretty sure that's not how a cosmo is made, but realize you don't actually know.",
                 "choices": [],
                 "dests": [],
-                "answer": ""
+                "answer": 0
         },
         {
                 "index": MANHATTAN,
                 "next": GIRL,
-                "desc": "You order a manhatten with Wild Turkey, two cherries, and extra bitters.  The bartenders appears impressed and with a wry smile he delicately prepares your cocktail for you.",
+                "desc": "You order a manhatten with Wild Turkey, two cherries, and extra bitters.  The bartender appears impressed and with a wry smile he delicately prepares your cocktail for you.",
                 "choices": [],
                 "dests": [],
-                "answer": ""
+                "answer": 0
         },
         {
                 "index": ANGRY_GUY,
@@ -214,7 +209,7 @@ const SCENARIOS = [
                 "desc": "A huge barrel-chested dude with an oily black mullet and a scruffy chin beard stares at you angrily.  <<Yeah, that's right.  Fuck you, you little bitch>> he says, <<and fuck LOGO.  LOGO sucks!>>",
                 "choices": [],
                 "dests": [],
-                "answer": ""
+                "answer": 0
         },
         {
                 "index": DRUG_DEALER,
@@ -222,7 +217,7 @@ const SCENARIOS = [
                 "desc": "You suddenly notice someone beside you.  He draws you aside.  <<Hey man, you look like you could use some, eh, inspiration>>.  The guy is just plain bizaare looking.  He holds out a few pills and says, <<You wanna buy some of these, man?>> and holds out his hand with a few pills.  <<And I've got some even better stuff out back if you interested...>>.  He gestures to the red door at the back of the club.",
                 "choices": [],
                 "dests": [],
-                "answer": ""
+                "answer": 0
         },
         {
                 "index": GIRL,
@@ -230,7 +225,7 @@ const SCENARIOS = [
                 "desc": "A stunning punk rocker stands before you.  She's got spikey blonde hair and blue lipstick and (check this out) she's wearing a jacket with a LOGO logo on it.  <<Nice jacket>> she purrs <<we've got something in common>>.  You try to say something cool back to her, but you end up just croaking <<Hey, yeah, cool>>  The girl slides closer.  <<Hey, I know we just met and all, but do you think you could help me get back stage?>>",
                 "choices": [],
                 "dests": [],
-                "answer": ""
+                "answer": 0
         },
         {
                 "index": FIGHT_OR_FLIGHT,
@@ -238,7 +233,7 @@ const SCENARIOS = [
                 "desc": "What do you do?",
                 "choices": ["sock him in the nose", "run away", "sucker punch to the gut"],
                 "dests": [HIT_FACE, BACK_AWAY, HIT_GUT],
-                "answer": ""
+                "answer": 0
         },
         {
                 "index": HELP_GIRL,
@@ -246,7 +241,7 @@ const SCENARIOS = [
                 "desc": "<<Yeah>> you lie <<I've been thinking about sneaking back stage too.>> You scope the club and figure there must be three ways to get back there.",
                 "choices": ["through the mosh pit and behind the stage", "go out the entrance and around the back", "go through the red door"],
                 "dests": [MOSH_PIT, FRONT, RED_DOOR],
-                "answer": ""
+                "answer": 0
         },
         {
                 "index": DRUG_DEAL,
@@ -254,7 +249,7 @@ const SCENARIOS = [
                 "desc": "What do you do?",
                 "choices": ["buy them", "don't buy them", "head to the door"],
                 "dests": [BUY, DONT_BUY, RED_DOOR],
-                "answer": ""
+                "answer": 0
         },
         {
                 "index": HIT_FACE,
@@ -262,7 +257,7 @@ const SCENARIOS = [
                 "desc": "You hit him in the face as hard as you can.  Everyone gasps as blood spurts from his face.  But he doesn't go down.  Now he's pissed.  He pulls a switch blade from his pocket and buries it hilt deep into your chest.  The last thing you see is everyone running as the darkness closes in.",
                 "choices": [],
                 "dests": [],
-                "answer": ""
+                "answer": 0
         },
         {
                 "index": BACK_AWAY,
@@ -270,7 +265,7 @@ const SCENARIOS = [
                 "desc": "You turn and run, knocking down people in your way.  Your thoughts are racing a mile a minute. <<How do I get out of this place?>>",
                 "choices": [],
                 "dests": [],
-                "answer": ""
+                "answer": 0
         },
         {
                 "index": HIT_GUT,
@@ -278,7 +273,7 @@ const SCENARIOS = [
                 "desc": "You channel the spirit of Tyson and sucker punch him in the gut.  The guy's eyes literally bulge.  He falls back into the crowd gasping for air.  The crowd parts in awe as you walk away.",
                 "choices": [],
                 "dests": [],
-                "answer": ""
+                "answer": 0
         },
         {
                 "index": BUY,
@@ -286,7 +281,7 @@ const SCENARIOS = [
                 "desc": "You buy the pills and pop them into your mouth.  You see the guy's eyes widen.  <<You ain't supposed to take them all at once, dude!>>  The pain begins in your stomache and makes it way up toward you head.  You crash to the floor, foaming at the mouth.  A woman nearby lets out a scream.",
                 "choices": [],
                 "dests": [],
-                "answer": ""
+                "answer": 0
         },
         {
                 "index": DONT_BUY,
@@ -294,7 +289,7 @@ const SCENARIOS = [
                 "desc": "<<Naw>> you say <<I don't got no cash, bra>>  The dealer shrugs his shoulders and disappears into the crowd.  <<Hey, you want to share those?>> a silky voice says beside you.  <<Oh wait, you didn't buy anything>>",
                 "choices": [],
                 "dests": [],
-                "answer": ""
+                "answer": 0
         },
         {
                 "index": EXIT,
@@ -302,7 +297,7 @@ const SCENARIOS = [
                 "desc": "Your bloodshot eyes scan the club.  There are three ways to high tail out of here.  Where do you run?",
                 "choices": ["out the entrance", "to the bathroom", "through the red door"],
                 "dests": [FRONT, BATHROOM, RED_DOOR],
-                "answer": ""
+                "answer": 0
         },
         {
                 "index": FRONT,
@@ -310,7 +305,7 @@ const SCENARIOS = [
                 "desc": "You walk out the entrance of the club.  You realize this may be a mistake so you turn around to go back in.  But the bouncer blocks your way.  He wants you to pay the cover again.  <<I already paid the cover>> you say, <<you just saw me walk out.  I've been waiting for months to see this band>>  But he's unmoved and tells you go get lost.",
                 "choices": [],
                 "dests": [],
-                "answer": ""
+                "answer": 0
         },
         {
                 "index": BATHROOM,
@@ -318,7 +313,7 @@ const SCENARIOS = [
                 "desc": "You panic and run into the bathroom.  There's a slimy sink, a broken urinal, and an overflowing toilet.  If you had time, you could admire the graffitti that covers the walls.  You turn to see the mullet guy has followed you.  His right hook floors you.  You last thing you see is stars floating in a haze.",
                 "choices": [],
                 "dests": [],
-                "answer": ""
+                "answer": 0
         },
         {
                 "index": RED_DOOR,
@@ -326,7 +321,7 @@ const SCENARIOS = [
                 "desc": "You walk through the red door.  It looks like it would lead into a back room, but instead it opens straight into an alley way.  A smelly dumpster is on one side and a group of thugs on the other.  They rob you and beat you senseless.",
                 "choices": [],
                 "dests": [],
-                "answer": ""
+                "answer": 0
         },
         {
                 "index": WIN,
@@ -334,7 +329,7 @@ const SCENARIOS = [
                 "desc": "Little do you know it, but you escaped death!",
                 "choices": [],
                 "dests": [],
-                "answer": ""
+                "answer": 0
         },
         {
                 "index": DIE,
@@ -342,7 +337,7 @@ const SCENARIOS = [
                 "desc": "You are dead.",
                 "choices": [],
                 "dests": [],
-                "answer": ""
+                "answer": 0
         }
 ];
 
@@ -378,10 +373,12 @@ def main() {
     while(newscene != NULL) {
 
         scene := newscene;
-        #print("scene=" + newscene);
         
+        i := SCENARIOS[HOME]["answer"];
+        logo := LOGOS[i];
+        desc := replace(SCENARIOS[scene]["desc"], "LOGO", logo);
         print("");
-        print(SCENARIOS[scene]["desc"]);
+        print(desc);
         print("");
 
         if(len(SCENARIOS[scene]["choices"]) > 0) {
