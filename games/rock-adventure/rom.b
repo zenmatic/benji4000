@@ -3,11 +3,6 @@
 
 # TODO:
 ##
-# 1: buy them 2: don't buy them 3: head to the door should be
-# 1: buy them
-# 2: don't buy them
-# 3: head to the door
-##
 # add var like LOGO into text
 ##
 
@@ -357,7 +352,9 @@ logo := "";
 def get_choice(choices) {
         ret := 4;
         while(ret = 4) {
-                print("1: " + choices[0] + " 2: " + choices[1] + " 3: " + choices[2]);
+                print("1: " + choices[0]);
+                print("2: " + choices[1]);
+                print("3: " + choices[2]);
                 ans := input("> ");
                 if(ans = "1") {
                         return 0;
