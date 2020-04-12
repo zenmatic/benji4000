@@ -54,6 +54,23 @@ func substr(arg ...interface{}) (interface{}, error) {
 	return string(s[start:end]), nil
 }
 
+func replace(arg ...interface{}) (interface{}, error) {
+	s, ok := arg[0].(string)
+	if !ok {
+		return nil, fmt.Errorf("argument 1 to replace() should be a string")
+	}
+	oldstring, ok := arg[1].(string)
+	if !ok {
+		return nil, fmt.Errorf("argument 2 to replace() should be a string")
+	}
+	newstring, ok := arg[2].(string)
+	if !ok {
+		return nil, fmt.Errorf("argument 3 to replace() should be a string")
+	}
+
+	return strings.ReplaceAll(s, oldstring, newstring), nil
+}
+
 func keys(arg ...interface{}) (interface{}, error) {
 	m, ok := arg[0].(map[string]interface{})
 	if !ok {
@@ -75,5 +92,6 @@ func Builtins() map[string]Function {
 		"len":    length,
 		"keys":   keys,
 		"substr": substr,
+		"replace": replace,
 	}
 }
