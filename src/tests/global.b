@@ -23,17 +23,23 @@ def foo3(value) {
 
 def main() {
     print("value=" + value);
+    assert(value, 10);
 
     value := value * 2;
+    assert(value, 20);
     print("value=" + value);
 
     foo();
+    assert(value, 30);
     print("after foo, value=" + value);
 
     new_value := foo2(value);
+    assert(value, 30);
+    assert(new_value, 3000);
     print("after foo2, value=" + value);
     print("after foo2, new_value=" + new_value);
 
     foo3(5);
+    assert(value, 30);
     print("after foo3, value=" + value);
 }

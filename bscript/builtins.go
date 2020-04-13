@@ -8,19 +8,19 @@ import (
 	"strings"
 )
 
-func print(arg ...interface{}) (interface{}, error) {
+func print(ctx *Context, arg ...interface{}) (interface{}, error) {
 	fmt.Println(EvalString(arg[0]))
 	return nil, nil
 }
 
-func input(arg ...interface{}) (interface{}, error) {
+func input(ctx *Context, arg ...interface{}) (interface{}, error) {
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Print(arg[0])
 	text, err := reader.ReadString('\n')
 	return strings.TrimSpace(text), err
 }
 
-func length(arg ...interface{}) (interface{}, error) {
+func length(ctx *Context, arg ...interface{}) (interface{}, error) {
 	a, ok := arg[0].(*[]interface{})
 	if !ok {
 		s, ok := arg[0].(string)
@@ -32,7 +32,7 @@ func length(arg ...interface{}) (interface{}, error) {
 	return float64(len(*a)), nil
 }
 
-func substr(arg ...interface{}) (interface{}, error) {
+func substr(ctx *Context, arg ...interface{}) (interface{}, error) {
 	s, ok := arg[0].(string)
 	if !ok {
 		return nil, fmt.Errorf("argument 1 to substr() should be a string")
@@ -54,7 +54,7 @@ func substr(arg ...interface{}) (interface{}, error) {
 	return string(s[start:end]), nil
 }
 
-func replace(arg ...interface{}) (interface{}, error) {
+func replace(ctx *Context, arg ...interface{}) (interface{}, error) {
 	s, ok := arg[0].(string)
 	if !ok {
 		return nil, fmt.Errorf("argument 1 to replace() should be a string")
@@ -71,7 +71,7 @@ func replace(arg ...interface{}) (interface{}, error) {
 	return strings.ReplaceAll(s, oldstring, newstring), nil
 }
 
-func keys(arg ...interface{}) (interface{}, error) {
+func keys(ctx *Context, arg ...interface{}) (interface{}, error) {
 	m, ok := arg[0].(map[string]interface{})
 	if !ok {
 		return nil, fmt.Errorf("argument to key() should be a map")
@@ -85,13 +85,87 @@ func keys(arg ...interface{}) (interface{}, error) {
 	return &keys, nil
 }
 
-func Builtins() map[string]Function {
-	return map[string]Function{
+func debug(ctx *Context, arg ...interface{}) (interface{}, error) {
+	message, ok := arg[0].(string)
+	if !ok {
+		return nil, fmt.Errorf("argument to debug() should be a string")
+	}
+	ctx.debug(message)
+	return nil, nil
+}
+
+func assert(ctx *Context, arg ...interface{}) (interface{}, error) {
+	a := arg[0]
+	b := arg[1]
+	msg := "Incorrect value"
+	if len(arg) > 2 {
+		msg = arg[2].(string)
+	}
+
+	var res bool
+
+	// for arrays, compare the values
+	arr, ok := a.(*[]interface{})
+	if ok {
+		// array
+		brr, ok := b.(*[]interface{})
+		if !ok {
+			res = true
+		} else {
+			if len(*arr) == len(*brr) {
+				res = false
+				for i := range *arr {
+					if (*arr)[i] != (*brr)[i] {
+						res = true
+						break
+					}
+				}
+			} else {
+				res = true
+			}
+		}
+	} else {
+		// map
+		amap, ok := a.(map[string]interface{})
+		if ok {
+			bmap, ok := b.(map[string]interface{})
+			if !ok {
+				res = true
+			} else {
+				if len(amap) == len(bmap) {
+					res = false
+					for k := range amap {
+						if amap[k] != bmap[k] {
+							res = true
+							break
+						}
+					}
+				} else {
+					res = true
+				}
+			}
+		} else {
+			// default is to compare equality
+			res = a != b
+		}
+	}
+
+	if res {
+		debug(ctx, fmt.Sprintf("Assertion failure: %s: %v != %v", msg, a, b))
+		return nil, fmt.Errorf("%s Assertion failure: %s: %v != %v", ctx.Pos, msg, a, b)
+	}
+	return nil, nil
+}
+
+func Builtins() map[string]Builtin {
+	return map[string]Builtin{
 		"print":  print,
 		"input":  input,
 		"len":    length,
 		"keys":   keys,
 		"substr": substr,
 		"replace": replace,
+		"debug":  debug,
+		"assert": assert,
 	}
 }

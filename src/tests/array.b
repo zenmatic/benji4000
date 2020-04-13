@@ -20,13 +20,16 @@ def main() {
     # print it, or a part of it
     print("a=" + a);
     print("at index=2, " + a[2]);
+    assert(a[2], 3);
 
     # array element assignment
     a[0] := 13;
+    assert(a[0], 13);
     print("After setting index 0, " + a[0]);
 
     # array element on RHS
     x := a[0];
+    assert(x, 13);
     print("Afer reading index 0, " + x);
 
     # array element dynamic access
@@ -36,6 +39,7 @@ def main() {
         i := i + 1;
     }
     print("After dynamic access " + a);
+    assert(a, [26, 4, 6, 8, 10]);
 
     # append to an array by adding a new element at the end
     i := 0;
@@ -43,20 +47,26 @@ def main() {
         a[len(a)] := i;
         i := i + 1;
     }
+    assert(a, [26, 4, 6, 8, 10, 0, 1, 2]);    
     print("After adding 3 elements " + a);
 
     # delete from array
     del a[0];
+    assert(a, [4, 6, 8, 10, 0, 1, 2]);
     print("After removing element 0: " + a + " length=" + len(a));
     del a[3];
+    assert(a, [4, 6, 8, 0, 1, 2]);
     print("After removing element 3: " + a + " length=" + len(a));
 
     # pass by reference
     foo(a);
+    assert(a, [4, 6, 55, 0, 1, 2]);
     print("After pass by reference " + a);
 
     # create array in function
     list := create_array();
+    assert(a, [4, 6, 55, 0, 1, 2]);
+    assert(list, ["abc", "def", "ghi"]);
     print("After create in function, a=" + a);
     print("After create in function, list=" + list);
 }

@@ -7,7 +7,7 @@
         },
         {
             "name": "keyword.source.bscript",
-            "match": "(if|else|def|end|while|return|del)"
+            "match": "(if|else|def|end|while|return|del|null|=>)"
         },
         {
             "name": "keyword.operator.source.bscript",

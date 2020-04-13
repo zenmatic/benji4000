@@ -38,6 +38,15 @@ type Fun struct {
 	Commands []*Command `")" "{" ( @@ )* "}"`
 }
 
+type AnonFun struct {
+	Pos lexer.Position
+
+	Params        []string    `( "(" ( @Ident ( "," @Ident )* )* ")" "=" ">"`
+	SingleParam   *string     `| @Ident "=" ">" )`
+	Commands      []*Command  `( "{" ( @@ )* "}"`
+	SingleCommand *Expression `| @@ )`
+}
+
 type Command struct {
 	Pos lexer.Position
 
@@ -47,6 +56,7 @@ type Command struct {
 	Return *Return `  | @@ ";" `
 	If     *If     `  | @@ `
 	While  *While  `  | @@ `
+	Fun    *Fun    `  | @@ `
 	Call   *Call   `  | @@ ";" )`
 }
 
@@ -80,7 +90,13 @@ type Remark struct {
 type Call struct {
 	Pos lexer.Position
 
-	Name string        `@Ident`
+	Name       string        `@Ident`
+	CallParams []*CallParams `( @@ )+`
+}
+
+type CallParams struct {
+	Pos lexer.Position
+
 	Args []*Expression `"(" [ @@ { "," @@ } ] ")"`
 }
 
@@ -110,6 +126,8 @@ type Value struct {
 
 	Array         *Array        ` @@`
 	Map           *Map          `| @@`
+	AnonFun       *AnonFun      `| @@`
+	Null          *string       `| @"null"`
 	Number        *float64      `| @Number`
 	Call          *Call         `| @@`
 	ArrayElement  *ArrayElement `| @@`
@@ -221,6 +239,14 @@ var (
 	`))
 
 	Parser = participle.MustBuild(&Program{},
+		participle.Lexer(benjiLexer),
+		participle.CaseInsensitive("Ident"),
+		participle.Unquote("String"),
+		participle.UseLookahead(2),
+		participle.Elide("Whitespace"),
+	)
+
+	CommandParser = participle.MustBuild(&Command{},
 		participle.Lexer(benjiLexer),
 		participle.CaseInsensitive("Ident"),
 		participle.Unquote("String"),
