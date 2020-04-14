@@ -8,4 +8,7 @@ def main() {
     s := "get key";
     print(">" + substr(s, 0, 4) + "<");
     print(">" + substr(s, 4) + "<");
+
+    s := "replace THIS in this sentence";
+    print("> " + replace(s, "THIS", "THAT"));
 }
