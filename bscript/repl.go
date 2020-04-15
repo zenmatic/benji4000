@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/uzudil/benji4000/gfx"
 )
 
 const syntaxError = "?Syntax error"
@@ -34,8 +36,8 @@ func processCommand(ctx *Context, cmds string) (bool, error) {
 	case cmd[0] == "help":
 		ctx.Builtins["print"](ctx, "bscript Repl commands:")
 		ctx.Builtins["print"](ctx, "exit - quit to shell")
-		ctx.Builtins["print"](ctx, "run <filename> - load and run the program specified by filename")
-		ctx.Builtins["print"](ctx, "run <filename> - only load the program specified by filename")
+		ctx.Builtins["print"](ctx, "run [<filename>] - if filename is given, load and run the program specified by filename. Without a filename: run program currently in memory.")
+		ctx.Builtins["print"](ctx, "load <filename> - load the program specified by filename")
 		ctx.Builtins["print"](ctx, "help - print this help")
 		ctx.Builtins["print"](ctx, "debug - print stack and closures")
 		return true, nil
@@ -45,8 +47,10 @@ func processCommand(ctx *Context, cmds string) (bool, error) {
 }
 
 // Repl is an interactive command interpreter
-func Repl() {
+func Repl(video *gfx.Gfx) {
 	ctx := CreateContext(nil)
+	ctx.Video = video
+
 	ctx.Builtins["print"](ctx, " **** Benji4000 bscript v1 ****")
 	ctx.Builtins["print"](ctx, "")
 	for true {

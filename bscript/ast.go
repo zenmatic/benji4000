@@ -185,7 +185,7 @@ type Factor struct {
 type OpFactor struct {
 	Pos lexer.Position
 
-	Operator Operator `@("*" | "/")`
+	Operator Operator `@("*" | "/" | "%")`
 	Factor   *Factor  `@@`
 }
 

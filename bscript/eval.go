@@ -8,6 +8,7 @@ import (
 
 	"github.com/alecthomas/participle/lexer"
 	"github.com/alecthomas/repr"
+	"github.com/uzudil/benji4000/gfx"
 )
 
 var ANON_COUNT uint32
@@ -59,6 +60,8 @@ type Context struct {
 	Pos lexer.Position
 	// the program
 	Program *Program
+	// the video card
+	Video *gfx.Gfx
 }
 
 func (v *Value) Evaluate(ctx *Context) (interface{}, error) {
@@ -191,6 +194,8 @@ func (o *OpFactor) Evaluate(ctx *Context, lhs interface{}) (interface{}, error) 
 		return lhsNumber * rhsNumber, nil
 	case "/":
 		return lhsNumber / rhsNumber, nil
+	case "%":
+		return float64(int(lhsNumber) % int(rhsNumber)), nil
 	}
 	panic("unreachable")
 }
@@ -727,6 +732,7 @@ func CreateContext(program *Program) *Context {
 		RuntimeStack: []Runtime{},
 		Pos:          lexer.Position{},
 		Program:      program,
+		Video:        nil,
 	}
 
 }

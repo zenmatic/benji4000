@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"math"
+	"math/rand"
 	"os"
 	"strings"
 )
@@ -85,6 +86,42 @@ func keys(ctx *Context, arg ...interface{}) (interface{}, error) {
 	return &keys, nil
 }
 
+func setVideoMode(ctx *Context, arg ...interface{}) (interface{}, error) {
+	if ctx.Video == nil {
+		panic("Video card not initialized")
+	}
+	mode, ok := arg[0].(float64)
+	if !ok {
+		return nil, fmt.Errorf("First parameter should be the number of the video mode")
+	}
+	ctx.Video.Mode = uint8(mode)
+	return nil, nil
+}
+
+func setPixel(ctx *Context, arg ...interface{}) (interface{}, error) {
+	if ctx.Video == nil {
+		panic("Video card not initialized")
+	}
+	x, ok := arg[0].(float64)
+	if !ok {
+		return nil, fmt.Errorf("First parameter should be a number")
+	}
+	y, ok := arg[1].(float64)
+	if !ok {
+		return nil, fmt.Errorf("Second parameter should be a number")
+	}
+	color, ok := arg[2].(float64)
+	if !ok {
+		return nil, fmt.Errorf("Third parameter should be a number")
+	}
+	ctx.Video.SetPixel(int(x), int(y), uint8(0), uint8(color), uint8(0))
+	return nil, nil
+}
+
+func random(ctx *Context, arg ...interface{}) (interface{}, error) {
+	return rand.Float64(), nil
+}
+
 func debug(ctx *Context, arg ...interface{}) (interface{}, error) {
 	message, ok := arg[0].(string)
 	if !ok {
@@ -159,13 +196,16 @@ func assert(ctx *Context, arg ...interface{}) (interface{}, error) {
 
 func Builtins() map[string]Builtin {
 	return map[string]Builtin{
-		"print":  print,
-		"input":  input,
-		"len":    length,
-		"keys":   keys,
-		"substr": substr,
-		"replace": replace,
-		"debug":  debug,
-		"assert": assert,
+		"print":        print,
+		"input":        input,
+		"len":          length,
+		"keys":         keys,
+		"substr":       substr,
+		"replace":      replace,
+		"debug":        debug,
+		"assert":       assert,
+		"setVideoMode": setVideoMode,
+		"setPixel":     setPixel,
+		"random":       random,
 	}
 }
