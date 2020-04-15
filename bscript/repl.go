@@ -23,7 +23,7 @@ func processCommand(ctx *Context, cmds string) (bool, error) {
 	case cmd[0] == "run":
 		var err error
 		if len(cmd) > 1 {
-			_, err = Run(cmd[1], nil, ctx)
+			_, err = Run(cmd[1], nil, ctx, ctx.Video)
 		} else if ctx.Program != nil {
 			_, err = ctx.Program.Evaluate(ctx)
 		} else {

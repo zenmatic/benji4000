@@ -118,6 +118,20 @@ func setPixel(ctx *Context, arg ...interface{}) (interface{}, error) {
 	return nil, nil
 }
 
+func startVideoUpdate(ctx *Context, arg ...interface{}) (interface{}, error) {
+	if ctx.Video == nil {
+		panic("Video card not initialized")
+	}
+	return nil, ctx.Video.StartUpdate()
+}
+
+func endVideoUpdate(ctx *Context, arg ...interface{}) (interface{}, error) {
+	if ctx.Video == nil {
+		panic("Video card not initialized")
+	}
+	return nil, ctx.Video.EndUpdate()
+}
+
 func random(ctx *Context, arg ...interface{}) (interface{}, error) {
 	return rand.Float64(), nil
 }
@@ -196,16 +210,18 @@ func assert(ctx *Context, arg ...interface{}) (interface{}, error) {
 
 func Builtins() map[string]Builtin {
 	return map[string]Builtin{
-		"print":        print,
-		"input":        input,
-		"len":          length,
-		"keys":         keys,
-		"substr":       substr,
-		"replace":      replace,
-		"debug":        debug,
-		"assert":       assert,
-		"setVideoMode": setVideoMode,
-		"setPixel":     setPixel,
-		"random":       random,
+		"print":            print,
+		"input":            input,
+		"len":              length,
+		"keys":             keys,
+		"substr":           substr,
+		"replace":          replace,
+		"debug":            debug,
+		"assert":           assert,
+		"setVideoMode":     setVideoMode,
+		"setPixel":         setPixel,
+		"random":           random,
+		"startVideoUpdate": startVideoUpdate,
+		"endVideoUpdate":   endVideoUpdate,
 	}
 }

@@ -2,6 +2,7 @@ package gfx
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/veandco/go-sdl2/sdl"
 )
@@ -32,8 +33,13 @@ type Gfx struct {
 	// The background color (used by some modes)
 	BackgroundColor uint8
 
-	Window   *sdl.Window
-	Renderer *sdl.Renderer
+	Window      *sdl.Window
+	Renderer    *sdl.Renderer
+	Texture     *sdl.Texture
+	PixelFormat *sdl.PixelFormat
+	Lock        sync.Mutex
+	Pixels      []byte
+	Pitch       int
 }
 
 // NewGfx lets you create a new Gfx video card
@@ -49,6 +55,14 @@ func NewGfx() *Gfx {
 
 	renderer.SetScale(SCALE, SCALE)
 	renderer.SetLogicalSize(WIDTH, HEIGHT)
+
+	pixelFormat := &sdl.PixelFormat{
+		Format: sdl.PIXELFORMAT_RGB888,
+	}
+	texture, err := renderer.CreateTexture(pixelFormat.Format, sdl.TEXTUREACCESS_STREAMING, WIDTH, HEIGHT)
+	if err != nil {
+		panic(err)
+	}
 
 	gfx := &Gfx{
 		Mode:        GfxTextMode,
@@ -75,6 +89,11 @@ func NewGfx() *Gfx {
 		BackgroundColor: 0,
 		Window:          window,
 		Renderer:        renderer,
+		Texture:         texture,
+		PixelFormat:     pixelFormat,
+		Lock:            sync.Mutex{},
+		Pixels:          nil,
+		Pitch:           0,
 	}
 
 	return gfx
@@ -84,11 +103,25 @@ func (gfx *Gfx) MainLoop() {
 	defer sdl.Quit()
 	defer gfx.Window.Destroy()
 	defer gfx.Renderer.Destroy()
+	defer gfx.Texture.Destroy()
 
 	running := true
 	var current_time, fps_last_time uint32 = 0, sdl.GetTicks()
 	var c int
 	var fps float32
+
+	src := &sdl.Rect{
+		X: 0,
+		Y: 0,
+		W: WIDTH,
+		H: HEIGHT,
+	}
+	dst := &sdl.Rect{
+		X: 0,
+		Y: 0,
+		W: WIDTH,
+		H: HEIGHT,
+	}
 	for running {
 		current_time = sdl.GetTicks()
 		c++
@@ -101,18 +134,10 @@ func (gfx *Gfx) MainLoop() {
 			c = 0
 		}
 
-		gfx.Renderer.SetDrawColor(0, 0, 0, 0)
-		gfx.Renderer.Clear()
-
-		switch {
-		case gfx.Mode == GfxTextMode:
-			gfx.renderTextMode()
-		case gfx.Mode == GfxHiresMode:
-			gfx.renderHiresMode()
-		case gfx.Mode == GfxMultiColorMode:
-			gfx.renderMultiColorMode()
-		}
+		gfx.Lock.Lock()
+		gfx.Renderer.Copy(gfx.Texture, src, dst)
 		gfx.Renderer.Present()
+		gfx.Lock.Unlock()
 
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
 			switch event.(type) {
@@ -125,6 +150,7 @@ func (gfx *Gfx) MainLoop() {
 	}
 }
 
+/*
 func (gfx *Gfx) renderTextMode() {
 }
 
@@ -166,6 +192,26 @@ func (gfx *Gfx) renderMultiColorMode() {
 		gfx.Renderer.DrawPoint(int32(x*4+3), int32(y))
 	}
 }
+*/
+
+func (gfx *Gfx) StartUpdate() error {
+	gfx.Lock.Lock()
+	pixels, pitch, err := gfx.Texture.Lock(nil)
+	if err != nil {
+		return err
+	}
+	// gfx.Texture.SetBlendMode(sdl.BLENDMODE_NONE)
+
+	gfx.Pixels = pixels
+	gfx.Pitch = pitch
+	return nil
+}
+
+func (gfx *Gfx) EndUpdate() error {
+	gfx.Texture.Unlock()
+	gfx.Lock.Unlock()
+	return nil
+}
 
 func (gfx *Gfx) SetPixel(x, y int, ch uint8, fg uint8, bg uint8) {
 
@@ -173,27 +219,41 @@ func (gfx *Gfx) SetPixel(x, y int, ch uint8, fg uint8, bg uint8) {
 	case gfx.Mode == GfxTextMode:
 		panic("Implement me!")
 	case gfx.Mode == GfxHiresMode:
-		if x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT {
-			return
-		}
-
-		// pixel on/off bit
-		index := x/8 + (y * WIDTH / 8)
-		gfx.PixelMemory[index] |= (1 << (x % 8))
-
-		// color info is stored in the text memory
-		gfx.TextMemory[(y/8)*WIDTH/8+(x/8)] = fg
+		gfx.SetPixelHires(x, y, fg)
 	case gfx.Mode == GfxMultiColorMode:
-		if x < 0 || x >= WIDTH/2 || y < 0 || y >= HEIGHT {
-			return
-		}
-
-		// pixel color: 2 double-wide pixels are stored in 1 byte
-		index := x/2 + (y * WIDTH / 4)
-		if x%2 == 0 {
-			gfx.PixelMemory[index] |= fg
-		} else {
-			gfx.PixelMemory[index] |= (fg << 4)
-		}
+		gfx.SetPixelMulti(x, y, fg)
 	}
+
+}
+
+func (gfx *Gfx) SetPixelHires(x, y int, fg uint8) {
+	if x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT {
+		return
+	}
+
+	r, g, b := gfx.Colors[(fg%8)*3], gfx.Colors[(fg%8)*3+1], gfx.Colors[(fg%8)*3+2]
+
+	pixelPosition := y*gfx.Pitch + x*4
+	gfx.Pixels[pixelPosition] = r
+	gfx.Pixels[pixelPosition+1] = g
+	gfx.Pixels[pixelPosition+2] = b
+	gfx.Pixels[pixelPosition+3] = 0xff
+}
+
+func (gfx *Gfx) SetPixelMulti(x, y int, fg uint8) {
+	if x < 0 || x >= WIDTH/2 || y < 0 || y >= HEIGHT {
+		return
+	}
+
+	r, g, b := gfx.Colors[fg*3], gfx.Colors[fg*3+1], gfx.Colors[fg*3+2]
+
+	pixelPosition := y*gfx.Pitch + x*8
+	gfx.Pixels[pixelPosition] = r
+	gfx.Pixels[pixelPosition+1] = g
+	gfx.Pixels[pixelPosition+2] = b
+	gfx.Pixels[pixelPosition+3] = 0xff
+	gfx.Pixels[pixelPosition+4] = r
+	gfx.Pixels[pixelPosition+5] = g
+	gfx.Pixels[pixelPosition+6] = b
+	gfx.Pixels[pixelPosition+7] = 0xff
 }

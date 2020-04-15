@@ -762,7 +762,7 @@ func Load(source string, showAst *bool, ctx *Context) (interface{}, error) {
 	return ast.init(ctx)
 }
 
-func Run(source string, showAst *bool, ctx *Context) (interface{}, error) {
+func Run(source string, showAst *bool, ctx *Context, video *gfx.Gfx) (interface{}, error) {
 	// run it
 	ast, err := load(source, showAst)
 	if err != nil {
@@ -773,6 +773,7 @@ func Run(source string, showAst *bool, ctx *Context) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
+	ctx.Video = video
 
 	return ast.Evaluate(ctx)
 }
