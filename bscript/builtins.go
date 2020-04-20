@@ -87,21 +87,15 @@ func keys(ctx *Context, arg ...interface{}) (interface{}, error) {
 }
 
 func setVideoMode(ctx *Context, arg ...interface{}) (interface{}, error) {
-	if ctx.Video == nil {
-		panic("Video card not initialized")
-	}
 	mode, ok := arg[0].(float64)
 	if !ok {
 		return nil, fmt.Errorf("First parameter should be the number of the video mode")
 	}
-	ctx.Video.Mode = uint8(mode)
+	ctx.VideoMode = int(mode)
 	return nil, nil
 }
 
 func setPixel(ctx *Context, arg ...interface{}) (interface{}, error) {
-	if ctx.Video == nil {
-		panic("Video card not initialized")
-	}
 	x, ok := arg[0].(float64)
 	if !ok {
 		return nil, fmt.Errorf("First parameter should be a number")
@@ -114,22 +108,14 @@ func setPixel(ctx *Context, arg ...interface{}) (interface{}, error) {
 	if !ok {
 		return nil, fmt.Errorf("Third parameter should be a number")
 	}
-	ctx.Video.SetPixel(int(x), int(y), uint8(0), uint8(color), uint8(0))
-	return nil, nil
+	return nil, ctx.SetPixel(int(x), int(y), uint8(0), uint8(color), uint8(0))
 }
 
-func startVideoUpdate(ctx *Context, arg ...interface{}) (interface{}, error) {
+func updateVideo(ctx *Context, arg ...interface{}) (interface{}, error) {
 	if ctx.Video == nil {
 		panic("Video card not initialized")
 	}
-	return nil, ctx.Video.StartUpdate()
-}
-
-func endVideoUpdate(ctx *Context, arg ...interface{}) (interface{}, error) {
-	if ctx.Video == nil {
-		panic("Video card not initialized")
-	}
-	return nil, ctx.Video.EndUpdate()
+	return nil, ctx.UpdateVideo()
 }
 
 func random(ctx *Context, arg ...interface{}) (interface{}, error) {
@@ -210,18 +196,17 @@ func assert(ctx *Context, arg ...interface{}) (interface{}, error) {
 
 func Builtins() map[string]Builtin {
 	return map[string]Builtin{
-		"print":            print,
-		"input":            input,
-		"len":              length,
-		"keys":             keys,
-		"substr":           substr,
-		"replace":          replace,
-		"debug":            debug,
-		"assert":           assert,
-		"setVideoMode":     setVideoMode,
-		"setPixel":         setPixel,
-		"random":           random,
-		"startVideoUpdate": startVideoUpdate,
-		"endVideoUpdate":   endVideoUpdate,
+		"print":        print,
+		"input":        input,
+		"len":          length,
+		"keys":         keys,
+		"substr":       substr,
+		"replace":      replace,
+		"debug":        debug,
+		"assert":       assert,
+		"setVideoMode": setVideoMode,
+		"setPixel":     setPixel,
+		"random":       random,
+		"updateVideo":  updateVideo,
 	}
 }

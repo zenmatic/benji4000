@@ -62,6 +62,12 @@ type Context struct {
 	Program *Program
 	// the video card
 	Video *gfx.Gfx
+	// the video mode
+	VideoMode int
+	// video memory
+	VideoMemory [gfx.Width * gfx.Height]byte
+	// text memory
+	TextMemory [gfx.Width / 8 * gfx.Height / 8]byte
 }
 
 func (v *Value) Evaluate(ctx *Context) (interface{}, error) {
@@ -726,6 +732,9 @@ func CreateContext(program *Program) *Context {
 		Parent:   nil,
 	}
 	return &Context{
+		VideoMode:    GfxTextMode,
+		VideoMemory:  [gfx.Width * gfx.Height]byte{},
+		TextMemory:   [gfx.Width / 8 * gfx.Height / 8]byte{},
 		Consts:       map[string]interface{}{},
 		Builtins:     Builtins(),
 		Closure:      global,
@@ -872,4 +881,56 @@ func evaluateStrings(ctx *Context, lhs interface{}, rhsExpr Evaluatable) (string
 		return "", "", err
 	}
 	return EvalString(lhs), EvalString(rhs), nil
+}
+
+const (
+	// GfxTextMode is a 40x25 char text mode, 16 color background, 16 color foreground
+	GfxTextMode = 0
+
+	// GfxHiresMode is a 320x200 pixels, 1 background color, each 8x8 block 16 colors graphics mode
+	GfxHiresMode = 1
+
+	// GfxMultiColorMode is a 160x200 pixels (double wide) 16 colors graphics mode
+	GfxMultiColorMode = 2
+)
+
+func (ctx *Context) SetPixel(x, y int, ch, fg, bg uint8) error {
+	switch {
+	case ctx.VideoMode == GfxTextMode:
+	case ctx.VideoMode == GfxHiresMode:
+		if x >= 0 && y >= 0 && x < gfx.Width && y < gfx.Height {
+			// set the pixel asked for
+			ctx.VideoMemory[y*gfx.Width+x] = byte(fg)
+
+			// set other pixels (if >0) in this 8x8 area
+			bx := (x / 8) * 8
+			by := (y / 8) * 8
+			for xx := 0; xx < 8; xx++ {
+				for yy := 0; yy < 8; yy++ {
+					addr := (by+yy)*gfx.Width + (bx + xx)
+					if ctx.VideoMemory[addr] > 0 {
+						ctx.VideoMemory[addr] = byte(fg)
+					}
+				}
+			}
+		}
+	case ctx.VideoMode == GfxMultiColorMode:
+		if x >= 0 && y >= 0 && x < gfx.Width/2 && y < gfx.Height {
+			ctx.VideoMemory[y*gfx.Width+x*2] = byte(fg)
+			ctx.VideoMemory[y*gfx.Width+x*2+1] = byte(fg)
+		}
+	}
+	return nil
+}
+
+func (ctx *Context) UpdateVideo() error {
+	ctx.Video.Lock.Lock()
+	for index, colorIndex := range ctx.VideoMemory {
+		r, g, b := ctx.Video.Colors[colorIndex*3], ctx.Video.Colors[colorIndex*3+1], ctx.Video.Colors[colorIndex*3+2]
+		ctx.Video.PixelMemory[index*3] = r
+		ctx.Video.PixelMemory[index*3+1] = g
+		ctx.Video.PixelMemory[index*3+2] = b
+	}
+	ctx.Video.Lock.Unlock()
+	return nil
 }

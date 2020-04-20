@@ -3,7 +3,6 @@ package gfx
 import (
 	"fmt"
 	"log"
-	"math/rand"
 	"runtime"
 	"strings"
 	"sync"
@@ -13,8 +12,8 @@ import (
 )
 
 const (
-	width  = 320
-	height = 200
+	Width  = 320
+	Height = 200
 	scale  = 2
 
 	vertexShaderSource = `
@@ -61,23 +60,10 @@ var (
 	}
 )
 
-// GfxTextMode is a 40x25 char text mode, 16 color background, 16 color foreground
-const GfxTextMode = 0
-
-// GfxHiresMode is a 320x200 pixels, 1 background color, each 8x8 block 16 colors graphics mode
-const GfxHiresMode = 1
-
-// GfxMultiColorMode is a 160x200 pixels (double wide) 16 colors graphics mode
-const GfxMultiColorMode = 2
-
 // Gfx is the "video card" api
 type Gfx struct {
-	// the graphics mode
-	Mode uint8
 	// the video memory
-	PixelMemory [width * height]uint8
-	// character memory
-	TextMemory [width / 8 * height / 8]uint8
+	PixelMemory [Width * Height * 3]byte
 	// the color palette (16 rgb values)
 	Colors [16 * 3]uint8
 	// The background color (used by some modes)
@@ -92,9 +78,7 @@ type Gfx struct {
 // NewGfx lets you create a new Gfx video card
 func NewGfx() *Gfx {
 	gfx := &Gfx{
-		Mode:        GfxTextMode,
-		PixelMemory: [width * height]uint8{},
-		TextMemory:  [width / 8 * height / 8]uint8{},
+		PixelMemory: [320 * 200 * 3]byte{},
 		Colors: [16 * 3]uint8{
 			// C64 colors :-)
 			0x00, 0x00, 0x00,
@@ -138,7 +122,7 @@ func initGlfw() *glfw.Window {
 	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
 	glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
 
-	window, err := glfw.CreateWindow(width*scale, height*scale, "Benji4000", nil, nil)
+	window, err := glfw.CreateWindow(Width*scale, Height*scale, "Benji4000", nil, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -229,18 +213,6 @@ func makeVao() uint32 {
 func (gfx *Gfx) MainLoop() {
 	defer glfw.Terminate()
 
-	var pixels [320 * 200 * 3]byte
-	i := 0
-	for y := 0; y < 200; y++ {
-		for x := 0; x < 320; x++ {
-			pixels[i] = byte((float32(x) / 320.0) * (float32(y) / 200.0) * 255.0)
-			pixels[i+1] = 0x00
-			pixels[i+2] = 0x00
-			i += 3
-		}
-	}
-	// fmt.Printf("pixels=%v\n", pixels[0:10])
-
 	// texture setup
 	var texture uint32
 	gl.GenTextures(1, &texture)
@@ -249,7 +221,8 @@ func (gfx *Gfx) MainLoop() {
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
-	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGB, width, height, 0, gl.RGB, gl.UNSIGNED_BYTE, gl.Ptr(&pixels[0]))
+	// gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGB, Width, Height, 0, gl.RGB, gl.UNSIGNED_BYTE, gl.Ptr(&pixels[0]))
+	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGB, Width, Height, 0, gl.RGB, gl.UNSIGNED_BYTE, nil)
 	gl.GenerateMipmap(gl.TEXTURE_2D)
 
 	// bind to shader
@@ -269,10 +242,14 @@ func (gfx *Gfx) MainLoop() {
 		}
 
 		// blip the video ram to texture (random for now)
-		for i := 0; i < len(pixels); i++ {
-			pixels[i] = byte(rand.Intn(255))
-		}
-		gl.TexSubImage2D(gl.TEXTURE_2D, 0, 0, 0, width, height, gl.RGB, gl.UNSIGNED_BYTE, gl.Ptr(&pixels[0]))
+		// for i := 0; i < len(pixels); i++ {
+		// 	pixels[i] = byte(rand.Intn(255))
+		// }
+		gfx.Lock.Lock()
+		// need to do this so go.Ptr() works. This could be a bug in go: https://github.com/golang/go/issues/14210
+		pixels := gfx.PixelMemory
+		gl.TexSubImage2D(gl.TEXTURE_2D, 0, 0, 0, Width, Height, gl.RGB, gl.UNSIGNED_BYTE, gl.Ptr(&pixels[0]))
+		gfx.Lock.Unlock()
 
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 		gl.ActiveTexture(gl.TEXTURE0)
@@ -330,35 +307,3 @@ func (gfx *Gfx) renderMultiColorMode() {
 	}
 }
 */
-
-func (gfx *Gfx) StartUpdate() error {
-	gfx.Lock.Lock()
-	// pixels, pitch, err := gfx.Texture.Lock(nil)
-	// if err != nil {
-	// 	return err
-	// }
-	// // gfx.Texture.SetBlendMode(sdl.BLENDMODE_NONE)
-
-	// gfx.Pixels = pixels
-	// gfx.Pitch = pitch
-	return nil
-}
-
-func (gfx *Gfx) EndUpdate() error {
-	// gfx.Texture.Unlock()
-	gfx.Lock.Unlock()
-	return nil
-}
-
-func (gfx *Gfx) SetPixel(x, y int, ch, fg, bg uint8) {
-
-	switch {
-	case gfx.Mode == GfxTextMode:
-		panic("Implement me!")
-	case gfx.Mode == GfxHiresMode:
-		// gfx.SetPixelHires(x, y, fg)
-	case gfx.Mode == GfxMultiColorMode:
-		// gfx.SetPixelMulti(x, y, fg)
-	}
-
-}

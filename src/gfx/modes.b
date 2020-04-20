@@ -1,5 +1,4 @@
 def fillScreen(w, h) {
-    startVideoUpdate();
     index := 0;
     c := 0;
     while(index < w * h) {
@@ -9,18 +8,19 @@ def fillScreen(w, h) {
         c := random() * 16;
         index := index + 1;
     }
-    endVideoUpdate();
+    updateVideo();
 }
 
 def main() {
-    #setVideoMode(1);
-
-    i := 1;
-    #while(i < 10) {
-    #    fillScreen(320, 200);
-    #}
+    
+#    setVideoMode(1);
+#    i := 1;
+#    while(i < 10) {
+#        fillScreen(320, 200);
+#    }
 
     setVideoMode(2);
+    i := 1;
     while(i < 10) {
         fillScreen(160, 200);
     }
