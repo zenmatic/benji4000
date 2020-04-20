@@ -894,6 +894,73 @@ const (
 	GfxMultiColorMode = 2
 )
 
+func (ctx *Context) DrawCircle(x, y, r int, fg uint8) error {
+	return ctx.circle(x, y, r, fg, false)
+}
+
+func (ctx *Context) FillCircle(x, y, r int, fg uint8) error {
+	return ctx.circle(x, y, r, fg, true)
+}
+
+func (ctx *Context) circle(x, y, r int, fg uint8, filled bool) error {
+	for a := 0; a <= 180; a++ {
+		rad := float64(a) / 180.0 * math.Pi
+		sx := float64(x) + float64(r)*math.Cos(rad)
+		sy := float64(y) + float64(r)*math.Sin(rad)
+		if !filled {
+			ctx.SetPixel(int(sx), int(sy), 0, fg, 0)
+		}
+
+		a2 := 360 - a
+		rad = float64(a2) / 180.0 * math.Pi
+		ex := float64(x) + float64(r)*math.Cos(rad)
+		ey := float64(y) + float64(r)*math.Sin(rad)
+		if !filled {
+			ctx.SetPixel(int(ex), int(ey), 0, fg, 0)
+		}
+
+		if filled {
+			ctx.DrawLine(int(sx), int(sy), int(ex), int(ey), fg)
+		}
+	}
+	return nil
+}
+
+func (ctx *Context) DrawLine(x, y, x2, y2 int, fg uint8) error {
+	sx := float64(x)
+	sy := float64(y)
+	ex := float64(x2)
+	ey := float64(y2)
+
+	if math.Abs(float64(x)-float64(x2)) > math.Abs(float64(y)-float64(y2)) {
+		// walk along x
+		if x > x2 {
+			sx, ex = ex, sx
+			sy, ey = ey, sy
+		}
+		dy := (ey - sy) / (ex - sx)
+		yy := sy
+		for xx := sx; xx <= ex; xx++ {
+			ctx.SetPixel(int(xx), int(yy), 0, fg, 0)
+			yy += dy
+		}
+	} else {
+		// walk along y
+		if y > y2 {
+			sy, ey = ey, sy
+			sx, ex = ex, sx
+		}
+		dx := (ex - sx) / (ey - sy)
+		xx := sx
+		for yy := sy; yy <= ey; yy++ {
+			ctx.SetPixel(int(xx), int(yy), 0, fg, 0)
+			xx += dx
+		}
+	}
+
+	return nil
+}
+
 func (ctx *Context) SetPixel(x, y int, ch, fg, bg uint8) error {
 	switch {
 	case ctx.VideoMode == GfxTextMode:
@@ -923,6 +990,13 @@ func (ctx *Context) SetPixel(x, y int, ch, fg, bg uint8) error {
 	return nil
 }
 
+func (ctx *Context) ClearVideo() error {
+	for i := range ctx.VideoMemory {
+		ctx.VideoMemory[i] = 0
+	}
+	return nil
+}
+
 func (ctx *Context) UpdateVideo() error {
 	ctx.Video.Lock.Lock()
 	for index, colorIndex := range ctx.VideoMemory {
@@ -932,5 +1006,6 @@ func (ctx *Context) UpdateVideo() error {
 		ctx.Video.PixelMemory[index*3+2] = b
 	}
 	ctx.Video.Lock.Unlock()
+	// runtime.Gosched()
 	return nil
 }

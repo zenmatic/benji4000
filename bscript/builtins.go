@@ -111,6 +111,74 @@ func setPixel(ctx *Context, arg ...interface{}) (interface{}, error) {
 	return nil, ctx.SetPixel(int(x), int(y), uint8(0), uint8(color), uint8(0))
 }
 
+func drawLine(ctx *Context, arg ...interface{}) (interface{}, error) {
+	x, ok := arg[0].(float64)
+	if !ok {
+		return nil, fmt.Errorf("First parameter should be a number")
+	}
+	y, ok := arg[1].(float64)
+	if !ok {
+		return nil, fmt.Errorf("Second parameter should be a number")
+	}
+	x2, ok := arg[2].(float64)
+	if !ok {
+		return nil, fmt.Errorf("Third parameter should be a number")
+	}
+	y2, ok := arg[3].(float64)
+	if !ok {
+		return nil, fmt.Errorf("Fourth parameter should be a number")
+	}
+	color, ok := arg[4].(float64)
+	if !ok {
+		return nil, fmt.Errorf("Fifth parameter should be a number")
+	}
+	return nil, ctx.DrawLine(int(x), int(y), int(x2), int(y2), uint8(color))
+}
+
+func drawCircle(ctx *Context, arg ...interface{}) (interface{}, error) {
+	x, ok := arg[0].(float64)
+	if !ok {
+		return nil, fmt.Errorf("First parameter should be a number")
+	}
+	y, ok := arg[1].(float64)
+	if !ok {
+		return nil, fmt.Errorf("Second parameter should be a number")
+	}
+	r, ok := arg[2].(float64)
+	if !ok {
+		return nil, fmt.Errorf("Third parameter should be a number")
+	}
+	color, ok := arg[3].(float64)
+	if !ok {
+		return nil, fmt.Errorf("Fourth parameter should be a number")
+	}
+	return nil, ctx.DrawCircle(int(x), int(y), int(r), uint8(color))
+}
+
+func fillCircle(ctx *Context, arg ...interface{}) (interface{}, error) {
+	x, ok := arg[0].(float64)
+	if !ok {
+		return nil, fmt.Errorf("First parameter should be a number")
+	}
+	y, ok := arg[1].(float64)
+	if !ok {
+		return nil, fmt.Errorf("Second parameter should be a number")
+	}
+	r, ok := arg[2].(float64)
+	if !ok {
+		return nil, fmt.Errorf("Third parameter should be a number")
+	}
+	color, ok := arg[3].(float64)
+	if !ok {
+		return nil, fmt.Errorf("Fourth parameter should be a number")
+	}
+	return nil, ctx.FillCircle(int(x), int(y), int(r), uint8(color))
+}
+
+func clearVideo(ctx *Context, arg ...interface{}) (interface{}, error) {
+	return nil, ctx.ClearVideo()
+}
+
 func updateVideo(ctx *Context, arg ...interface{}) (interface{}, error) {
 	if ctx.Video == nil {
 		panic("Video card not initialized")
@@ -208,5 +276,9 @@ func Builtins() map[string]Builtin {
 		"setPixel":     setPixel,
 		"random":       random,
 		"updateVideo":  updateVideo,
+		"clearVideo":   clearVideo,
+		"drawLine":     drawLine,
+		"drawCircle":   drawCircle,
+		"fillCircle":   fillCircle,
 	}
 }
