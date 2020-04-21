@@ -902,11 +902,14 @@ func (ctx *Context) FillCircle(x, y, r int, fg uint8) error {
 	return ctx.circle(x, y, r, fg, true)
 }
 
+// 90 degrees in radians
+const rad90 = 0.5 * math.Pi
+
 // there is probably a more efficient way to do this
 func (ctx *Context) circle(x, y, r int, fg uint8, filled bool) error {
 	circleSteps := r * 2
 	for a := 0; a <= circleSteps; a++ {
-		rad := (float64(a) / float64(circleSteps)) * 0.5 * math.Pi
+		rad := (float64(a) / float64(circleSteps)) * rad90
 		dx := float64(r) * math.Cos(rad)
 		dy := float64(r) * math.Sin(rad)
 		if filled {
