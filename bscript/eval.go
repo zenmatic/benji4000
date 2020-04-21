@@ -907,23 +907,48 @@ const rad90 = 0.5 * math.Pi
 
 // there is probably a more efficient way to do this
 func (ctx *Context) circle(x, y, r int, fg uint8, filled bool) error {
-	circleSteps := r * 2
+	var px, py float64
+	circleSteps := int(math.Min(float64(r*2), 100))
 	for a := 0; a <= circleSteps; a++ {
 		rad := (float64(a) / float64(circleSteps)) * rad90
 		dx := float64(r) * math.Cos(rad)
 		dy := float64(r) * math.Sin(rad)
 		if filled {
-			ctx.DrawLine(int(float64(x)+dx), int(float64(y)+dy), int(float64(x)+dx), int(float64(y)-dy), fg)
-			ctx.DrawLine(int(float64(x)-dx), int(float64(y)+dy), int(float64(x)-dx), int(float64(y)-dy), fg)
-		} else {
-			ctx.SetPixel(int(float64(x)+dx), int(float64(y)+dy), 0, fg, 0)
-			ctx.SetPixel(int(float64(x)-dx), int(float64(y)+dy), 0, fg, 0)
-			ctx.SetPixel(int(float64(x)-dx), int(float64(y)-dy), 0, fg, 0)
-			ctx.SetPixel(int(float64(x)+dx), int(float64(y)-dy), 0, fg, 0)
+			ctx.FillRect(int(float64(x)+dx), int(float64(y)+dy), int(float64(x)+px), int(float64(y)-dy), fg)
+			ctx.FillRect(int(float64(x)-px), int(float64(y)+dy), int(float64(x)-dx), int(float64(y)-dy), fg)
+		} else if !(px == 0 && py == 0) {
+			ctx.DrawLine(int(float64(x)+dx), int(float64(y)+dy), int(float64(x)+px), int(float64(y)+py), fg)
+			ctx.DrawLine(int(float64(x)-dx), int(float64(y)+dy), int(float64(x)-px), int(float64(y)+py), fg)
+			ctx.DrawLine(int(float64(x)-dx), int(float64(y)-dy), int(float64(x)-px), int(float64(y)-py), fg)
+			ctx.DrawLine(int(float64(x)+dx), int(float64(y)-dy), int(float64(x)+px), int(float64(y)-py), fg)
 		}
+		px = dx
+		py = dy
 	}
-	if filled {
-		ctx.DrawLine(x, y+r, x, y-r, fg)
+	return nil
+}
+
+func (ctx *Context) DrawRect(x, y, x2, y2 int, fg uint8) error {
+	ctx.DrawLine(x, y, x2, y, fg)
+	ctx.DrawLine(x, y2, x2, y2, fg)
+	ctx.DrawLine(x, y, x, y2, fg)
+	ctx.DrawLine(x2, y, x2, y2, fg)
+	return nil
+}
+
+func (ctx *Context) FillRect(x, y, x2, y2 int, fg uint8) error {
+	dx := 1
+	if x > x2 {
+		dx = -1
+	}
+	dy := 1
+	if y > y2 {
+		dy = -1
+	}
+	for xx := x; xx != x2; xx += dx {
+		for yy := y; yy != y2; yy += dy {
+			ctx.SetPixel(xx, yy, 0, fg, 0)
+		}
 	}
 	return nil
 }

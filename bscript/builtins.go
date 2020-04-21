@@ -175,6 +175,54 @@ func fillCircle(ctx *Context, arg ...interface{}) (interface{}, error) {
 	return nil, ctx.FillCircle(int(x), int(y), int(r), uint8(color))
 }
 
+func fillRect(ctx *Context, arg ...interface{}) (interface{}, error) {
+	x, ok := arg[0].(float64)
+	if !ok {
+		return nil, fmt.Errorf("First parameter should be a number")
+	}
+	y, ok := arg[1].(float64)
+	if !ok {
+		return nil, fmt.Errorf("Second parameter should be a number")
+	}
+	x2, ok := arg[2].(float64)
+	if !ok {
+		return nil, fmt.Errorf("Third parameter should be a number")
+	}
+	y2, ok := arg[3].(float64)
+	if !ok {
+		return nil, fmt.Errorf("Fourth parameter should be a number")
+	}
+	color, ok := arg[4].(float64)
+	if !ok {
+		return nil, fmt.Errorf("Fifth parameter should be a number")
+	}
+	return nil, ctx.FillRect(int(x), int(y), int(x2), int(y2), uint8(color))
+}
+
+func drawRect(ctx *Context, arg ...interface{}) (interface{}, error) {
+	x, ok := arg[0].(float64)
+	if !ok {
+		return nil, fmt.Errorf("First parameter should be a number")
+	}
+	y, ok := arg[1].(float64)
+	if !ok {
+		return nil, fmt.Errorf("Second parameter should be a number")
+	}
+	x2, ok := arg[2].(float64)
+	if !ok {
+		return nil, fmt.Errorf("Third parameter should be a number")
+	}
+	y2, ok := arg[3].(float64)
+	if !ok {
+		return nil, fmt.Errorf("Fourth parameter should be a number")
+	}
+	color, ok := arg[4].(float64)
+	if !ok {
+		return nil, fmt.Errorf("Fifth parameter should be a number")
+	}
+	return nil, ctx.DrawRect(int(x), int(y), int(x2), int(y2), uint8(color))
+}
+
 func clearVideo(ctx *Context, arg ...interface{}) (interface{}, error) {
 	return nil, ctx.ClearVideo()
 }
@@ -280,5 +328,7 @@ func Builtins() map[string]Builtin {
 		"drawLine":     drawLine,
 		"drawCircle":   drawCircle,
 		"fillCircle":   fillCircle,
+		"drawRect":     drawRect,
+		"fillRect":     fillRect,
 	}
 }

@@ -1,16 +1,16 @@
 r := 10;
-dir := 0.3;
+dir := 0.01;
 
 def main() {
-    setVideoMode(1);
+    setVideoMode(2);
     while(dir != 0) {
         clearVideo();
-        drawRect(10, 10, 150, 190, 6);
-        fillRect(170, 10, 310, 190, 8);
-        drawCircle(160, 100, r + 20, 5);
-        fillCircle(160, 100, r + 10, 7);
+        drawRect(10, 10, 70, 190, 6);
+        fillRect(90, 10, 150, 190, 8);
+        drawCircle(80, 100, r + 20, 5);
+        fillCircle(80, 100, r + 10, 7);
         r := r + dir;
-        if(r >= 150) {
+        if(r >= 70) {
             dir := -1 * dir;
         }
         if(r <= 5) {
