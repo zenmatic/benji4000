@@ -1,84 +1,46 @@
 package gfx
 
 import (
-	"fmt"
-	"log"
-	"runtime"
-	"strings"
-	"sync"
-
-	"github.com/go-gl/gl/v4.1-core/gl"
-	"github.com/go-gl/glfw/v3.2/glfw"
+	"math"
 )
 
 const (
 	Width  = 320
 	Height = 200
-	scale  = 2
 
-	vertexShaderSource = `
-		#version 410
-		layout (location = 0) in vec3 aPos;
-		layout (location = 1) in vec3 aColor;
-		layout (location = 2) in vec2 aTexCoord;
+	// GfxTextMode is a 40x25 char text mode, 16 color background, 16 color foreground
+	GfxTextMode = 0
 
-		out vec3 ourColor;
-		out vec2 TexCoord;
+	// GfxHiresMode is a 320x200 pixels, 1 background color, each 8x8 block 16 colors graphics mode
+	GfxHiresMode = 1
 
-		void main() {
-			gl_Position = vec4(aPos, 1.0);
-			ourColor = aColor;
-			TexCoord = aTexCoord;
-		}
-	` + "\x00"
-
-	fragmentShaderSource = `
-		#version 410
-		out vec4 FragColor;
-  
-		in vec3 ourColor;
-		in vec2 TexCoord;
-
-		uniform sampler2D ourTexture;
-
-		void main()
-		{
-			FragColor = texture(ourTexture, TexCoord);
-		}
-	` + "\x00"
-)
-
-var (
-	screen = []float32{
-		// xyz		color		texture coords
-		-1, 1, 0, 1, 1, 1, 0, 0,
-		-1, -1, 0, 1, 1, 1, 0, 1,
-		1, -1, 0, 1, 1, 1, 1, 1,
-		1, 1, 0, 1, 1, 1, 1, 0,
-		-1, 1, 0, 1, 1, 1, 0, 0,
-		1, -1, 0, 1, 1, 1, 1, 1,
-	}
+	// GfxMultiColorMode is a 160x200 pixels (double wide) 16 colors graphics mode
+	GfxMultiColorMode = 2
 )
 
 // Gfx is the "video card" api
 type Gfx struct {
-	// the video memory
-	PixelMemory [Width * Height * 3]byte
-	// the color palette (16 rgb values)
+	// the video mode
+	VideoMode int
+	// video memory
+	VideoMemory [Width * Height]byte
+	// text memory
+	TextMemory [Width / 8 * Height / 8]byte
+	// the actual renderer
+	Render *Render
+	// Color definitions
 	Colors [16 * 3]uint8
-	// The background color (used by some modes)
-	BackgroundColor uint8
-
-	Lock    sync.Mutex
-	Window  *glfw.Window
-	Program uint32
-	Vao     uint32
+	// the global background color
+	BackgroundColor int
 }
 
 // NewGfx lets you create a new Gfx video card
 func NewGfx() *Gfx {
-	gfx := &Gfx{
-		PixelMemory: [320 * 200 * 3]byte{},
+	return &Gfx{
+		VideoMode:   GfxTextMode,
+		VideoMemory: [Width * Height]byte{},
+		TextMemory:  [Width / 8 * Height / 8]byte{},
+		Render:      NewRender(),
 		Colors: [16 * 3]uint8{
 			// C64 colors :-)
 			0x00, 0x00, 0x00,
@@ -99,169 +61,148 @@ func NewGfx() *Gfx {
 			0xb8, 0xb8, 0xb8,
 		},
 		BackgroundColor: 0,
-
-		Lock:    sync.Mutex{},
-		Window:  initGlfw(),
-		Program: initOpenGL(),
-		Vao:     makeVao(),
 	}
-
-	runtime.LockOSThread()
-
-	return gfx
 }
 
-// initGlfw initializes glfw and returns a Window to use.
-func initGlfw() *glfw.Window {
-	if err := glfw.Init(); err != nil {
-		panic(err)
-	}
-	glfw.WindowHint(glfw.Resizable, glfw.True)
-	glfw.WindowHint(glfw.ContextVersionMajor, 4)
-	glfw.WindowHint(glfw.ContextVersionMinor, 1)
-	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
-	glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
-
-	window, err := glfw.CreateWindow(Width*scale, Height*scale, "Benji4000", nil, nil)
-	if err != nil {
-		panic(err)
-	}
-	window.MakeContextCurrent()
-
-	return window
+func (gfx *Gfx) DrawCircle(x, y, r int, fg uint8) error {
+	return gfx.circle(x, y, r, fg, false)
 }
 
-// initOpenGL initializes OpenGL and returns an intiialized program.
-func initOpenGL() uint32 {
-	if err := gl.Init(); err != nil {
-		panic(err)
-	}
-	version := gl.GoStr(gl.GetString(gl.VERSION))
-	log.Println("OpenGL version", version)
-
-	vertexShader, err := compileShader(vertexShaderSource, gl.VERTEX_SHADER)
-	if err != nil {
-		panic(err)
-	}
-
-	fragmentShader, err := compileShader(fragmentShaderSource, gl.FRAGMENT_SHADER)
-	if err != nil {
-		panic(err)
-	}
-
-	prog := gl.CreateProgram()
-	gl.AttachShader(prog, vertexShader)
-	gl.AttachShader(prog, fragmentShader)
-	gl.LinkProgram(prog)
-	return prog
+func (gfx *Gfx) FillCircle(x, y, r int, fg uint8) error {
+	return gfx.circle(x, y, r, fg, true)
 }
 
-func compileShader(source string, shaderType uint32) (uint32, error) {
-	shader := gl.CreateShader(shaderType)
+// 90 degrees in radians
+const rad90 = 0.5 * math.Pi
 
-	csources, free := gl.Strs(source)
-	gl.ShaderSource(shader, 1, csources, nil)
-	free()
-	gl.CompileShader(shader)
-
-	var status int32
-	gl.GetShaderiv(shader, gl.COMPILE_STATUS, &status)
-	if status == gl.FALSE {
-		var logLength int32
-		gl.GetShaderiv(shader, gl.INFO_LOG_LENGTH, &logLength)
-
-		log := strings.Repeat("\x00", int(logLength+1))
-		gl.GetShaderInfoLog(shader, logLength, nil, gl.Str(log))
-
-		return 0, fmt.Errorf("failed to compile %v: %v", source, log)
-	}
-
-	return shader, nil
-}
-
-// makeVao initializes and returns a vertex array from the points provided.
-func makeVao() uint32 {
-	var vbo uint32
-	gl.GenBuffers(1, &vbo)
-	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
-	gl.BufferData(gl.ARRAY_BUFFER, 4*len(screen), gl.Ptr(screen), gl.STATIC_DRAW)
-
-	var vao uint32
-	gl.GenVertexArrays(1, &vao)
-	gl.BindVertexArray(vao)
-	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
-	var offset int
-
-	// position attribute
-	gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 8*4, gl.PtrOffset(offset))
-	gl.EnableVertexAttribArray(0)
-	offset += 3 * 4
-
-	// color attribute
-	gl.VertexAttribPointer(1, 3, gl.FLOAT, false, 8*4, gl.PtrOffset(offset))
-	gl.EnableVertexAttribArray(1)
-	offset += 3 * 4
-
-	// texture coord attribute
-	gl.VertexAttribPointer(2, 2, gl.FLOAT, false, 8*4, gl.PtrOffset(offset))
-	gl.EnableVertexAttribArray(2)
-	offset += 2 * 4
-
-	return vao
-}
-
-func (gfx *Gfx) MainLoop() {
-	defer glfw.Terminate()
-
-	// texture setup
-	var texture uint32
-	gl.GenTextures(1, &texture)
-	gl.BindTexture(gl.TEXTURE_2D, texture)
-
-	// disable texture filtering for that old-school pixelated look
-	// gl.TexParameterf(gl.TEXTURE_2D, gl.TEXTURE_MAX_ANISOTROPY, 0)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
-	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGB, Width, Height, 0, gl.RGB, gl.UNSIGNED_BYTE, nil)
-	// gl.GenerateMipmap(gl.TEXTURE_2D)
-
-	// bind to shader
-	gl.UseProgram(gfx.Program)
-	gl.Uniform1i(gl.GetUniformLocation(gfx.Program, gl.Str("ourTexture\x00")), 0)
-
-	var lastTime, delta float64
-	var nbFrames int
-	for !gfx.Window.ShouldClose() {
-		currentTime := glfw.GetTime()
-		delta = currentTime - lastTime
-		nbFrames++
-		if delta >= 1.0 { // If last cout was more than 1 sec ago
-			gfx.Window.SetTitle(fmt.Sprintf("FPS: %.2f", float64(nbFrames)/delta))
-			nbFrames = 0
-			lastTime = currentTime
+// there is probably a more efficient way to do this
+func (gfx *Gfx) circle(x, y, r int, fg uint8, filled bool) error {
+	var px, py float64
+	circleSteps := int(math.Min(float64(r*2), 100))
+	for a := 0; a <= circleSteps; a++ {
+		rad := (float64(a) / float64(circleSteps)) * rad90
+		dx := float64(r) * math.Cos(rad)
+		dy := float64(r) * math.Sin(rad)
+		if filled {
+			gfx.FillRect(int(float64(x)+dx), int(float64(y)+dy), int(float64(x)+px), int(float64(y)-dy), fg)
+			gfx.FillRect(int(float64(x)-px), int(float64(y)+dy), int(float64(x)-dx), int(float64(y)-dy), fg)
+		} else if !(px == 0 && py == 0) {
+			gfx.DrawLine(int(float64(x)+dx), int(float64(y)+dy), int(float64(x)+px), int(float64(y)+py), fg)
+			gfx.DrawLine(int(float64(x)-dx), int(float64(y)+dy), int(float64(x)-px), int(float64(y)+py), fg)
+			gfx.DrawLine(int(float64(x)-dx), int(float64(y)-dy), int(float64(x)-px), int(float64(y)-py), fg)
+			gfx.DrawLine(int(float64(x)+dx), int(float64(y)-dy), int(float64(x)+px), int(float64(y)-py), fg)
 		}
-
-		// blip the video ram to texture (random for now)
-		// for i := 0; i < len(pixels); i++ {
-		// 	pixels[i] = byte(rand.Intn(255))
-		// }
-		gfx.Lock.Lock()
-		// need to do this so go.Ptr() works. This could be a bug in go: https://github.com/golang/go/issues/14210
-		pixels := gfx.PixelMemory
-		gl.TexSubImage2D(gl.TEXTURE_2D, 0, 0, 0, Width, Height, gl.RGB, gl.UNSIGNED_BYTE, gl.Ptr(&pixels[0]))
-		gfx.Lock.Unlock()
-
-		// gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-		gl.ActiveTexture(gl.TEXTURE0)
-		gl.BindTexture(gl.TEXTURE_2D, texture)
-		gl.UseProgram(gfx.Program)
-
-		gl.BindVertexArray(gfx.Vao)
-		gl.DrawArrays(gl.TRIANGLES, 0, int32(len(screen)/8))
-
-		glfw.PollEvents()
-		gfx.Window.SwapBuffers()
+		px = dx
+		py = dy
 	}
+	return nil
+}
+
+func (gfx *Gfx) DrawRect(x, y, x2, y2 int, fg uint8) error {
+	gfx.DrawLine(x, y, x2, y, fg)
+	gfx.DrawLine(x, y2, x2, y2, fg)
+	gfx.DrawLine(x, y, x, y2, fg)
+	gfx.DrawLine(x2, y, x2, y2, fg)
+	return nil
+}
+
+func (gfx *Gfx) FillRect(x, y, x2, y2 int, fg uint8) error {
+	dx := 1
+	if x > x2 {
+		dx = -1
+	}
+	dy := 1
+	if y > y2 {
+		dy = -1
+	}
+	for xx := x; xx != x2; xx += dx {
+		for yy := y; yy != y2; yy += dy {
+			gfx.SetPixel(xx, yy, 0, fg, 0)
+		}
+	}
+	return nil
+}
+
+func (gfx *Gfx) DrawLine(x, y, x2, y2 int, fg uint8) error {
+	sx := float64(x)
+	sy := float64(y)
+	ex := float64(x2)
+	ey := float64(y2)
+
+	if math.Abs(float64(x)-float64(x2)) > math.Abs(float64(y)-float64(y2)) {
+		// walk along x
+		if x > x2 {
+			sx, ex = ex, sx
+			sy, ey = ey, sy
+		}
+		dy := (ey - sy) / (ex - sx)
+		yy := sy
+		for xx := sx; xx <= ex; xx++ {
+			gfx.SetPixel(int(xx), int(yy), 0, fg, 0)
+			yy += dy
+		}
+	} else {
+		// walk along y
+		if y > y2 {
+			sy, ey = ey, sy
+			sx, ex = ex, sx
+		}
+		dx := (ex - sx) / (ey - sy)
+		xx := sx
+		for yy := sy; yy <= ey; yy++ {
+			gfx.SetPixel(int(xx), int(yy), 0, fg, 0)
+			xx += dx
+		}
+	}
+
+	return nil
+}
+
+func (gfx *Gfx) SetPixel(x, y int, ch, fg, bg uint8) error {
+	switch {
+	case gfx.VideoMode == GfxTextMode:
+	case gfx.VideoMode == GfxHiresMode:
+		if x >= 0 && y >= 0 && x < Width && y < Height {
+			// set the pixel asked for
+			gfx.VideoMemory[y*Width+x] = byte(fg)
+
+			// set other pixels (if >0) in this 8x8 area
+			bx := (x / 8) * 8
+			by := (y / 8) * 8
+			for xx := 0; xx < 8; xx++ {
+				for yy := 0; yy < 8; yy++ {
+					addr := (by+yy)*Width + (bx + xx)
+					if gfx.VideoMemory[addr] > 0 {
+						gfx.VideoMemory[addr] = byte(fg)
+					}
+				}
+			}
+		}
+	case gfx.VideoMode == GfxMultiColorMode:
+		if x >= 0 && y >= 0 && x < Width/2 && y < Height {
+			gfx.VideoMemory[y*Width+x*2] = byte(fg)
+			gfx.VideoMemory[y*Width+x*2+1] = byte(fg)
+		}
+	}
+	return nil
+}
+
+func (gfx *Gfx) ClearVideo() error {
+	for i := range gfx.VideoMemory {
+		gfx.VideoMemory[i] = 0
+	}
+	return nil
+}
+
+func (gfx *Gfx) UpdateVideo() error {
+	gfx.Render.Lock.Lock()
+	for index, colorIndex := range gfx.VideoMemory {
+		r, g, b := gfx.Colors[colorIndex*3], gfx.Colors[colorIndex*3+1], gfx.Colors[colorIndex*3+2]
+		gfx.Render.PixelMemory[index*3] = r
+		gfx.Render.PixelMemory[index*3+1] = g
+		gfx.Render.PixelMemory[index*3+2] = b
+	}
+	gfx.Render.Lock.Unlock()
+	// runtime.Gosched()
+	return nil
 }

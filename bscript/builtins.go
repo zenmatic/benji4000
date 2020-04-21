@@ -91,7 +91,7 @@ func setVideoMode(ctx *Context, arg ...interface{}) (interface{}, error) {
 	if !ok {
 		return nil, fmt.Errorf("First parameter should be the number of the video mode")
 	}
-	ctx.VideoMode = int(mode)
+	ctx.Video.VideoMode = int(mode)
 	return nil, nil
 }
 
@@ -108,7 +108,7 @@ func setPixel(ctx *Context, arg ...interface{}) (interface{}, error) {
 	if !ok {
 		return nil, fmt.Errorf("Third parameter should be a number")
 	}
-	return nil, ctx.SetPixel(int(x), int(y), uint8(0), uint8(color), uint8(0))
+	return nil, ctx.Video.SetPixel(int(x), int(y), uint8(0), uint8(color), uint8(0))
 }
 
 func drawLine(ctx *Context, arg ...interface{}) (interface{}, error) {
@@ -132,7 +132,7 @@ func drawLine(ctx *Context, arg ...interface{}) (interface{}, error) {
 	if !ok {
 		return nil, fmt.Errorf("Fifth parameter should be a number")
 	}
-	return nil, ctx.DrawLine(int(x), int(y), int(x2), int(y2), uint8(color))
+	return nil, ctx.Video.DrawLine(int(x), int(y), int(x2), int(y2), uint8(color))
 }
 
 func drawCircle(ctx *Context, arg ...interface{}) (interface{}, error) {
@@ -152,7 +152,7 @@ func drawCircle(ctx *Context, arg ...interface{}) (interface{}, error) {
 	if !ok {
 		return nil, fmt.Errorf("Fourth parameter should be a number")
 	}
-	return nil, ctx.DrawCircle(int(x), int(y), int(r), uint8(color))
+	return nil, ctx.Video.DrawCircle(int(x), int(y), int(r), uint8(color))
 }
 
 func fillCircle(ctx *Context, arg ...interface{}) (interface{}, error) {
@@ -172,7 +172,7 @@ func fillCircle(ctx *Context, arg ...interface{}) (interface{}, error) {
 	if !ok {
 		return nil, fmt.Errorf("Fourth parameter should be a number")
 	}
-	return nil, ctx.FillCircle(int(x), int(y), int(r), uint8(color))
+	return nil, ctx.Video.FillCircle(int(x), int(y), int(r), uint8(color))
 }
 
 func fillRect(ctx *Context, arg ...interface{}) (interface{}, error) {
@@ -196,7 +196,7 @@ func fillRect(ctx *Context, arg ...interface{}) (interface{}, error) {
 	if !ok {
 		return nil, fmt.Errorf("Fifth parameter should be a number")
 	}
-	return nil, ctx.FillRect(int(x), int(y), int(x2), int(y2), uint8(color))
+	return nil, ctx.Video.FillRect(int(x), int(y), int(x2), int(y2), uint8(color))
 }
 
 func drawRect(ctx *Context, arg ...interface{}) (interface{}, error) {
@@ -220,18 +220,19 @@ func drawRect(ctx *Context, arg ...interface{}) (interface{}, error) {
 	if !ok {
 		return nil, fmt.Errorf("Fifth parameter should be a number")
 	}
-	return nil, ctx.DrawRect(int(x), int(y), int(x2), int(y2), uint8(color))
+	return nil, ctx.Video.DrawRect(int(x), int(y), int(x2), int(y2), uint8(color))
 }
 
 func clearVideo(ctx *Context, arg ...interface{}) (interface{}, error) {
-	return nil, ctx.ClearVideo()
+	return nil, ctx.Video.ClearVideo()
 }
 
 func updateVideo(ctx *Context, arg ...interface{}) (interface{}, error) {
 	if ctx.Video == nil {
 		panic("Video card not initialized")
 	}
-	return nil, ctx.UpdateVideo()
+	// todo: delay here to achive a requested max framerate (default to 60)
+	return nil, ctx.Video.UpdateVideo()
 }
 
 func random(ctx *Context, arg ...interface{}) (interface{}, error) {

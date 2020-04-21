@@ -29,5 +29,5 @@ func main() {
 		go repl(video)
 	}
 
-	video.MainLoop()
+	video.Render.MainLoop()
 }

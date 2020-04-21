@@ -38,6 +38,8 @@ type Closure struct {
 	Defs map[string]*Closure
 	// the parent closure
 	Parent *Closure
+	// the graphics
+	Video *gfx.Gfx
 }
 
 type Runtime struct {
@@ -62,12 +64,6 @@ type Context struct {
 	Program *Program
 	// the video card
 	Video *gfx.Gfx
-	// the video mode
-	VideoMode int
-	// video memory
-	VideoMemory [gfx.Width * gfx.Height]byte
-	// text memory
-	TextMemory [gfx.Width / 8 * gfx.Height / 8]byte
 }
 
 func (v *Value) Evaluate(ctx *Context) (interface{}, error) {
@@ -732,9 +728,6 @@ func CreateContext(program *Program) *Context {
 		Parent:   nil,
 	}
 	return &Context{
-		VideoMode:    GfxTextMode,
-		VideoMemory:  [gfx.Width * gfx.Height]byte{},
-		TextMemory:   [gfx.Width / 8 * gfx.Height / 8]byte{},
 		Consts:       map[string]interface{}{},
 		Builtins:     Builtins(),
 		Closure:      global,
@@ -881,158 +874,4 @@ func evaluateStrings(ctx *Context, lhs interface{}, rhsExpr Evaluatable) (string
 		return "", "", err
 	}
 	return EvalString(lhs), EvalString(rhs), nil
-}
-
-const (
-	// GfxTextMode is a 40x25 char text mode, 16 color background, 16 color foreground
-	GfxTextMode = 0
-
-	// GfxHiresMode is a 320x200 pixels, 1 background color, each 8x8 block 16 colors graphics mode
-	GfxHiresMode = 1
-
-	// GfxMultiColorMode is a 160x200 pixels (double wide) 16 colors graphics mode
-	GfxMultiColorMode = 2
-)
-
-func (ctx *Context) DrawCircle(x, y, r int, fg uint8) error {
-	return ctx.circle(x, y, r, fg, false)
-}
-
-func (ctx *Context) FillCircle(x, y, r int, fg uint8) error {
-	return ctx.circle(x, y, r, fg, true)
-}
-
-// 90 degrees in radians
-const rad90 = 0.5 * math.Pi
-
-// there is probably a more efficient way to do this
-func (ctx *Context) circle(x, y, r int, fg uint8, filled bool) error {
-	var px, py float64
-	circleSteps := int(math.Min(float64(r*2), 100))
-	for a := 0; a <= circleSteps; a++ {
-		rad := (float64(a) / float64(circleSteps)) * rad90
-		dx := float64(r) * math.Cos(rad)
-		dy := float64(r) * math.Sin(rad)
-		if filled {
-			ctx.FillRect(int(float64(x)+dx), int(float64(y)+dy), int(float64(x)+px), int(float64(y)-dy), fg)
-			ctx.FillRect(int(float64(x)-px), int(float64(y)+dy), int(float64(x)-dx), int(float64(y)-dy), fg)
-		} else if !(px == 0 && py == 0) {
-			ctx.DrawLine(int(float64(x)+dx), int(float64(y)+dy), int(float64(x)+px), int(float64(y)+py), fg)
-			ctx.DrawLine(int(float64(x)-dx), int(float64(y)+dy), int(float64(x)-px), int(float64(y)+py), fg)
-			ctx.DrawLine(int(float64(x)-dx), int(float64(y)-dy), int(float64(x)-px), int(float64(y)-py), fg)
-			ctx.DrawLine(int(float64(x)+dx), int(float64(y)-dy), int(float64(x)+px), int(float64(y)-py), fg)
-		}
-		px = dx
-		py = dy
-	}
-	return nil
-}
-
-func (ctx *Context) DrawRect(x, y, x2, y2 int, fg uint8) error {
-	ctx.DrawLine(x, y, x2, y, fg)
-	ctx.DrawLine(x, y2, x2, y2, fg)
-	ctx.DrawLine(x, y, x, y2, fg)
-	ctx.DrawLine(x2, y, x2, y2, fg)
-	return nil
-}
-
-func (ctx *Context) FillRect(x, y, x2, y2 int, fg uint8) error {
-	dx := 1
-	if x > x2 {
-		dx = -1
-	}
-	dy := 1
-	if y > y2 {
-		dy = -1
-	}
-	for xx := x; xx != x2; xx += dx {
-		for yy := y; yy != y2; yy += dy {
-			ctx.SetPixel(xx, yy, 0, fg, 0)
-		}
-	}
-	return nil
-}
-
-func (ctx *Context) DrawLine(x, y, x2, y2 int, fg uint8) error {
-	sx := float64(x)
-	sy := float64(y)
-	ex := float64(x2)
-	ey := float64(y2)
-
-	if math.Abs(float64(x)-float64(x2)) > math.Abs(float64(y)-float64(y2)) {
-		// walk along x
-		if x > x2 {
-			sx, ex = ex, sx
-			sy, ey = ey, sy
-		}
-		dy := (ey - sy) / (ex - sx)
-		yy := sy
-		for xx := sx; xx <= ex; xx++ {
-			ctx.SetPixel(int(xx), int(yy), 0, fg, 0)
-			yy += dy
-		}
-	} else {
-		// walk along y
-		if y > y2 {
-			sy, ey = ey, sy
-			sx, ex = ex, sx
-		}
-		dx := (ex - sx) / (ey - sy)
-		xx := sx
-		for yy := sy; yy <= ey; yy++ {
-			ctx.SetPixel(int(xx), int(yy), 0, fg, 0)
-			xx += dx
-		}
-	}
-
-	return nil
-}
-
-func (ctx *Context) SetPixel(x, y int, ch, fg, bg uint8) error {
-	switch {
-	case ctx.VideoMode == GfxTextMode:
-	case ctx.VideoMode == GfxHiresMode:
-		if x >= 0 && y >= 0 && x < gfx.Width && y < gfx.Height {
-			// set the pixel asked for
-			ctx.VideoMemory[y*gfx.Width+x] = byte(fg)
-
-			// set other pixels (if >0) in this 8x8 area
-			bx := (x / 8) * 8
-			by := (y / 8) * 8
-			for xx := 0; xx < 8; xx++ {
-				for yy := 0; yy < 8; yy++ {
-					addr := (by+yy)*gfx.Width + (bx + xx)
-					if ctx.VideoMemory[addr] > 0 {
-						ctx.VideoMemory[addr] = byte(fg)
-					}
-				}
-			}
-		}
-	case ctx.VideoMode == GfxMultiColorMode:
-		if x >= 0 && y >= 0 && x < gfx.Width/2 && y < gfx.Height {
-			ctx.VideoMemory[y*gfx.Width+x*2] = byte(fg)
-			ctx.VideoMemory[y*gfx.Width+x*2+1] = byte(fg)
-		}
-	}
-	return nil
-}
-
-func (ctx *Context) ClearVideo() error {
-	for i := range ctx.VideoMemory {
-		ctx.VideoMemory[i] = 0
-	}
-	return nil
-}
-
-func (ctx *Context) UpdateVideo() error {
-	ctx.Video.Lock.Lock()
-	for index, colorIndex := range ctx.VideoMemory {
-		r, g, b := ctx.Video.Colors[colorIndex*3], ctx.Video.Colors[colorIndex*3+1], ctx.Video.Colors[colorIndex*3+2]
-		ctx.Video.PixelMemory[index*3] = r
-		ctx.Video.PixelMemory[index*3+1] = g
-		ctx.Video.PixelMemory[index*3+2] = b
-	}
-	ctx.Video.Lock.Unlock()
-	// runtime.Gosched()
-	return nil
 }
