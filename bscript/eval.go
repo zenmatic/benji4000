@@ -902,26 +902,25 @@ func (ctx *Context) FillCircle(x, y, r int, fg uint8) error {
 	return ctx.circle(x, y, r, fg, true)
 }
 
+// there is probably a more efficient way to do this
 func (ctx *Context) circle(x, y, r int, fg uint8, filled bool) error {
-	for a := 0; a <= 180; a++ {
-		rad := float64(a) / 180.0 * math.Pi
-		sx := float64(x) + float64(r)*math.Cos(rad)
-		sy := float64(y) + float64(r)*math.Sin(rad)
-		if !filled {
-			ctx.SetPixel(int(sx), int(sy), 0, fg, 0)
-		}
-
-		a2 := 360 - a
-		rad = float64(a2) / 180.0 * math.Pi
-		ex := float64(x) + float64(r)*math.Cos(rad)
-		ey := float64(y) + float64(r)*math.Sin(rad)
-		if !filled {
-			ctx.SetPixel(int(ex), int(ey), 0, fg, 0)
-		}
-
+	circleSteps := r * 2
+	for a := 0; a <= circleSteps; a++ {
+		rad := (float64(a) / float64(circleSteps)) * 0.5 * math.Pi
+		dx := float64(r) * math.Cos(rad)
+		dy := float64(r) * math.Sin(rad)
 		if filled {
-			ctx.DrawLine(int(sx), int(sy), int(ex), int(ey), fg)
+			ctx.DrawLine(int(float64(x)+dx), int(float64(y)+dy), int(float64(x)+dx), int(float64(y)-dy), fg)
+			ctx.DrawLine(int(float64(x)-dx), int(float64(y)+dy), int(float64(x)-dx), int(float64(y)-dy), fg)
+		} else {
+			ctx.SetPixel(int(float64(x)+dx), int(float64(y)+dy), 0, fg, 0)
+			ctx.SetPixel(int(float64(x)-dx), int(float64(y)+dy), 0, fg, 0)
+			ctx.SetPixel(int(float64(x)-dx), int(float64(y)-dy), 0, fg, 0)
+			ctx.SetPixel(int(float64(x)+dx), int(float64(y)-dy), 0, fg, 0)
 		}
+	}
+	if filled {
+		ctx.DrawLine(x, y+r, x, y-r, fg)
 	}
 	return nil
 }
