@@ -5,82 +5,91 @@ const nw = 3;
 const sw = 4;
 
 # global vars
-x := 80;
-y := 100;
-dir := sw;
-speed := 0.025;
+x := [ 80, 10, 130, 40 ];
+y := [ 40, 100, 70, 160 ];
+dir := [ sw, se, ne, nw ];
+speed := [ 0.025, 0.03, 0.05, 0.02 ];
+color := [ 2, 3, 4, 5 ];
 
-def step() {
-    if(dir = se) {
-        x := x + speed;
-        y := y + speed;
+def step(index) {
+    if(dir[index] = se) {
+        x[index] := x[index] + speed[index];
+        y[index] := y[index] + speed[index];
     }
-    if(dir = ne) {
-        x := x + speed;
-        y := y - speed;
+    if(dir[index] = ne) {
+        x[index] := x[index] + speed[index];
+        y[index] := y[index] - speed[index];
     }
-    if(dir = sw) {
-        x := x - speed;
-        y := y + speed;
+    if(dir[index] = sw) {
+        x[index] := x[index] - speed[index];
+        y[index] := y[index] + speed[index];
     }
-    if(dir = nw) {
-        x := x - speed;
-        y := y - speed;
+    if(dir[index] = nw) {
+        x[index] := x[index] - speed[index];
+        y[index] := y[index] - speed[index];
     }
 }
 
-def boundsCheck() {
-    if(x >= 150) {
-        if(dir = se) {
-            dir := sw;
+def boundsCheck(index) {
+    if(x[index] >= 150) {
+        if(dir[index] = se) {
+            dir[index] := sw;            
         }
-        if(dir = ne) {
-            dir := nw;
-        }
-    }
-    if(x <= 10) {
-        if(dir = nw) {
-            dir := ne;
-        }
-        if(dir = sw) {
-            dir := se;
+        if(dir[index] = ne) {
+            dir[index] := nw;
         }
     }
-    if(y >= 190) {
-        if(dir = se) {
-            dir := ne;
+    if(x[index] <= 10) {
+        if(dir[index] = nw) {
+            dir[index] := ne;
         }
-        if(dir = sw) {
-            dir := nw;
+        if(dir[index] = sw) {
+            dir[index] := se;
         }
     }
-    if(y <= 10) {
-        if(dir = ne) {
-            dir := se;
+    if(y[index] >= 190) {
+        if(dir[index] = se) {
+            dir[index] := ne;
         }
-        if(dir = nw) {
-            dir := sw;
+        if(dir[index] = sw) {
+            dir[index] := nw;
+        }
+    }
+    if(y[index] <= 10) {
+        if(dir[index] = ne) {
+            dir[index] := se;
+        }
+        if(dir[index] = nw) {
+            dir[index] := sw;
         }
     }
 }
 
 def drawBorder() {
-    drawLine(10, 10, 150, 10, 3);
-    drawLine(10, 10, 10, 190, 3);
-    drawLine(10, 190, 150, 190, 3);
-    drawLine(150, 10, 150, 190, 3);
-    drawLine(10, 10, 150, 190, 8);
-    drawLine(10, 190, 150, 10, 8);
+    drawLine(10, 10, 150, 10, 8);
+    drawLine(10, 10, 10, 190, 8);
+    drawLine(10, 190, 150, 190, 9);
+    drawLine(150, 10, 150, 190, 9);
+    drawLine(10, 10, 150, 190, 11);
+    drawLine(10, 190, 150, 10, 11);
+}
+
+def drawBalls() {
+    i := 0;
+    while(i < len(dir)) {
+        fillCircle(x[i], y[i], 10, color[i]);
+        step(i);
+        boundsCheck(i);
+        i := i + 1;
+    }
 }
 
 def main() {
     setVideoMode(2);
-    while(dir != 0) {
+    while(dir[0] != 0) {
         clearVideo();        
         drawBorder();
-        fillCircle(x, y, 10, 4);
+        drawBalls();
         updateVideo();
-        step();
-        boundsCheck();
     }
 }
