@@ -65,6 +65,8 @@ type Render struct {
 	Window      *glfw.Window
 	Program     uint32
 	Vao         uint32
+	// the desired framerate of the bscript code. This is how often the video texture is updated
+	Fps float64
 }
 
 func NewRender() *Render {
@@ -74,6 +76,7 @@ func NewRender() *Render {
 		Window:      initGlfw(),
 		Program:     initOpenGL(),
 		Vao:         makeVao(),
+		Fps:         60,
 	}
 
 	runtime.LockOSThread()
@@ -202,7 +205,7 @@ func (render *Render) MainLoop() {
 	gl.UseProgram(render.Program)
 	gl.Uniform1i(gl.GetUniformLocation(render.Program, gl.Str("ourTexture\x00")), 0)
 
-	var lastTime, delta float64
+	var lastTime, delta, lastUpdate float64
 	var nbFrames int
 	for !render.Window.ShouldClose() {
 		currentTime := glfw.GetTime()
@@ -214,12 +217,16 @@ func (render *Render) MainLoop() {
 			lastTime = currentTime
 		}
 
-		// make sure the video ram is not being updated in another goroutine
-		render.Lock.Lock()
-		// need to do this so go.Ptr() works. This could be a bug in go: https://github.com/golang/go/issues/14210
-		pixels := render.PixelMemory
-		gl.TexSubImage2D(gl.TEXTURE_2D, 0, 0, 0, Width, Height, gl.RGB, gl.UNSIGNED_BYTE, gl.Ptr(&pixels[0]))
-		render.Lock.Unlock()
+		delta = currentTime - lastUpdate
+		if delta > 1.0/render.Fps {
+			// make sure the video ram is not being updated in another goroutine
+			render.Lock.Lock()
+			// need to do this so go.Ptr() works. This could be a bug in go: https://github.com/golang/go/issues/14210
+			pixels := render.PixelMemory
+			gl.TexSubImage2D(gl.TEXTURE_2D, 0, 0, 0, Width, Height, gl.RGB, gl.UNSIGNED_BYTE, gl.Ptr(&pixels[0]))
+			render.Lock.Unlock()
+			lastUpdate = currentTime
+		}
 
 		// gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 		gl.ActiveTexture(gl.TEXTURE0)
