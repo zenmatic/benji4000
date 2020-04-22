@@ -71,7 +71,7 @@ type Render struct {
 
 func NewRender() *Render {
 	gfx := &Render{
-		PixelMemory: [320 * 200 * 3]byte{},
+		PixelMemory: [Width * Height * 3]byte{},
 		Lock:        sync.Mutex{},
 		Window:      initGlfw(),
 		Program:     initOpenGL(),
@@ -217,6 +217,8 @@ func (render *Render) MainLoop() {
 			lastTime = currentTime
 		}
 
+		// Cap bscript code fps to the desired limit
+		// This can mean that the video memory in gfx is not what is shown on screen...
 		delta = currentTime - lastUpdate
 		if delta > 1.0/render.Fps {
 			// make sure the video ram is not being updated in another goroutine

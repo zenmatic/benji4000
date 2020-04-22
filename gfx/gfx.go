@@ -32,6 +32,8 @@ type Gfx struct {
 	Colors [16 * 3]uint8
 	// the global background color
 	BackgroundColor int
+	// font memory
+	Font *[][8]uint8
 }
 
 // NewGfx lets you create a new Gfx video card
@@ -61,6 +63,7 @@ func NewGfx() *Gfx {
 			0xb8, 0xb8, 0xb8,
 		},
 		BackgroundColor: 0,
+		Font:            &Font8x8,
 	}
 }
 
@@ -158,9 +161,21 @@ func (gfx *Gfx) DrawLine(x, y, x2, y2 int, fg uint8) error {
 	return nil
 }
 
-func (gfx *Gfx) SetPixel(x, y int, ch, fg, bg uint8) error {
+func (gfx *Gfx) SetPixel(x, y, ch int, fg, bg uint8) error {
 	switch {
 	case gfx.VideoMode == GfxTextMode:
+		if x >= 0 && y >= 0 && x < Width/8 && y < Height/8 && ch >= 0 && ch < len(*gfx.Font) {
+			for row := 0; row < 8; row++ {
+				symbolRow := (*gfx.Font)[ch][row]
+				for bit := 0; bit < 8; bit++ {
+					color := bg
+					if (symbolRow>>bit)&1 == 1 {
+						color = fg
+					}
+					gfx.VideoMemory[(y*8+row)*Width+x*8+bit] = color
+				}
+			}
+		}
 	case gfx.VideoMode == GfxHiresMode:
 		if x >= 0 && y >= 0 && x < Width && y < Height {
 			// set the pixel asked for
@@ -197,10 +212,9 @@ func (gfx *Gfx) ClearVideo() error {
 func (gfx *Gfx) UpdateVideo() error {
 	gfx.Render.Lock.Lock()
 	for index, colorIndex := range gfx.VideoMemory {
-		r, g, b := gfx.Colors[colorIndex*3], gfx.Colors[colorIndex*3+1], gfx.Colors[colorIndex*3+2]
-		gfx.Render.PixelMemory[index*3] = r
-		gfx.Render.PixelMemory[index*3+1] = g
-		gfx.Render.PixelMemory[index*3+2] = b
+		gfx.Render.PixelMemory[index*3] = gfx.Colors[colorIndex*3]
+		gfx.Render.PixelMemory[index*3+1] = gfx.Colors[colorIndex*3+1]
+		gfx.Render.PixelMemory[index*3+2] = gfx.Colors[colorIndex*3+2]
 	}
 	gfx.Render.Lock.Unlock()
 	// runtime.Gosched()

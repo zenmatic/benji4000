@@ -108,7 +108,61 @@ func setPixel(ctx *Context, arg ...interface{}) (interface{}, error) {
 	if !ok {
 		return nil, fmt.Errorf("Third parameter should be a number")
 	}
-	return nil, ctx.Video.SetPixel(int(x), int(y), uint8(0), uint8(color), uint8(0))
+	return nil, ctx.Video.SetPixel(int(x), int(y), int(0), uint8(color), uint8(0))
+}
+
+func drawText(ctx *Context, arg ...interface{}) (interface{}, error) {
+	x, ok := arg[0].(float64)
+	if !ok {
+		return nil, fmt.Errorf("First parameter should be a number")
+	}
+	y, ok := arg[1].(float64)
+	if !ok {
+		return nil, fmt.Errorf("Second parameter should be a number")
+	}
+	fg, ok := arg[2].(float64)
+	if !ok {
+		return nil, fmt.Errorf("Third parameter should be a number")
+	}
+	bg, ok := arg[3].(float64)
+	if !ok {
+		return nil, fmt.Errorf("Fourth parameter should be a number")
+	}
+	text, ok := arg[4].(string)
+	if !ok {
+		return nil, fmt.Errorf("Fifth parameter should be a string")
+	}
+	for index, ch := range text {
+		err := ctx.Video.SetPixel(int(x)+index, int(y), int(ch), uint8(fg), uint8(bg))
+		if err != nil {
+			return nil, err
+		}
+	}
+	return nil, nil
+}
+
+func drawFont(ctx *Context, arg ...interface{}) (interface{}, error) {
+	x, ok := arg[0].(float64)
+	if !ok {
+		return nil, fmt.Errorf("First parameter should be a number")
+	}
+	y, ok := arg[1].(float64)
+	if !ok {
+		return nil, fmt.Errorf("Second parameter should be a number")
+	}
+	fg, ok := arg[2].(float64)
+	if !ok {
+		return nil, fmt.Errorf("Third parameter should be a number")
+	}
+	bg, ok := arg[3].(float64)
+	if !ok {
+		return nil, fmt.Errorf("Fourth parameter should be a number")
+	}
+	ch, ok := arg[4].(float64)
+	if !ok {
+		return nil, fmt.Errorf("Fifth parameter should be a number")
+	}
+	return nil, ctx.Video.SetPixel(int(x), int(y), int(ch), uint8(fg), uint8(bg))
 }
 
 func drawLine(ctx *Context, arg ...interface{}) (interface{}, error) {
@@ -331,5 +385,7 @@ func Builtins() map[string]Builtin {
 		"fillCircle":   fillCircle,
 		"drawRect":     drawRect,
 		"fillRect":     fillRect,
+		"drawText":     drawText,
+		"drawFont":     drawFont,
 	}
 }
