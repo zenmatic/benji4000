@@ -69,7 +69,10 @@ type Context struct {
 func (v *Value) Evaluate(ctx *Context) (interface{}, error) {
 	switch {
 	case v.Number != nil:
-		return *v.Number, nil
+		if v.Number.Sign != nil && *(v.Number.Sign) == "-" {
+			return -v.Number.Number, nil
+		}
+		return v.Number.Number, nil
 	case v.Null != nil:
 		return nil, nil
 	case v.Map != nil:
@@ -769,6 +772,9 @@ func Run(source string, showAst *bool, ctx *Context, video *gfx.Gfx) (interface{
 	ast, err := load(source, showAst)
 	if err != nil {
 		return nil, err
+	}
+	if *showAst {
+		os.Exit(0)
 	}
 
 	ctx, err = ast.init(ctx)

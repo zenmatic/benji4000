@@ -128,12 +128,19 @@ type Value struct {
 	Map           *Map          `| @@`
 	AnonFun       *AnonFun      `| @@`
 	Null          *string       `| @"null"`
-	Number        *float64      `| @Number`
+	Number        *SignedNumber `| @@`
 	Call          *Call         `| @@`
 	ArrayElement  *ArrayElement `| @@`
 	Variable      *Variable     `| @@`
 	String        *string       `| @String`
 	Subexpression *Expression   `| "(" @@ ")"`
+}
+
+type SignedNumber struct {
+	Pos lexer.Position
+
+	Sign   *string `@("+" | "-")?`
+	Number float64 `@Number`
 }
 
 type Variable struct {
@@ -229,7 +236,7 @@ var (
 		Comment = "#" { "\u0000"…"\uffff"-"\n"-"\r" } .
 		Ident = (alpha | "_") { "_" | alpha | digit } .
 		String = "\"" { "\u0000"…"\uffff"-"\""-"\\" | "\\" any } "\"" .
-		Number = [ "-" | "+" ] ("." | digit) { "." | digit } .
+		Number = ("." | digit) { "." | digit } .
 		Punct = "!"…"/" | ":"…"@" | "["…` + "\"`\"" + ` | "{"…"~" .
 		Whitespace = ( " " | "\t" | "\n" | "\r" ) { " " | "\t" | "\n" | "\r" } .
 
@@ -242,7 +249,7 @@ var (
 		participle.Lexer(benjiLexer),
 		participle.CaseInsensitive("Ident"),
 		participle.Unquote("String"),
-		participle.UseLookahead(2),
+		participle.UseLookahead(8),
 		participle.Elide("Whitespace"),
 	)
 
@@ -250,7 +257,7 @@ var (
 		participle.Lexer(benjiLexer),
 		participle.CaseInsensitive("Ident"),
 		participle.Unquote("String"),
-		participle.UseLookahead(2),
+		participle.UseLookahead(8),
 		participle.Elide("Whitespace"),
 	)
 )

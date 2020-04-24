@@ -11,10 +11,6 @@ func repl(video *gfx.Gfx) {
 	bscript.Repl(video)
 }
 
-func run(source string, showAst *bool, video *gfx.Gfx) {
-	bscript.Run(source, showAst, nil, video)
-}
-
 func main() {
 	var source string
 	flag.StringVar(&source, "source", "", "the bscript file to run")
@@ -24,7 +20,9 @@ func main() {
 	video := gfx.NewGfx()
 
 	if source != "" {
-		go run(source, showAst, video)
+		go func() {
+			bscript.Run(source, showAst, nil, video)
+		}()
 	} else {
 		go repl(video)
 	}
