@@ -1,6 +1,7 @@
 package gfx
 
 import (
+	"fmt"
 	"math"
 )
 
@@ -18,6 +19,11 @@ const (
 	GfxMultiColorMode = 2
 )
 
+type Cursor struct {
+	X, Y   int
+	Fg, Bg uint8
+}
+
 // Gfx is the "video card" api
 type Gfx struct {
 	// the video mode
@@ -25,7 +31,7 @@ type Gfx struct {
 	// video memory
 	VideoMemory [Width * Height]byte
 	// text memory
-	TextMemory [Width / 8 * Height / 8]byte
+	TextMemory [Width / 8 * Height / 8]int
 	// the actual renderer
 	Render *Render
 	// Color definitions
@@ -33,15 +39,40 @@ type Gfx struct {
 	// the global background color
 	BackgroundColor int
 	// font memory
-	Font *[][8]uint8
+	Font *[512][8]uint8
+	// the cursor in interactive mode
+	Cursor *Cursor
 }
+
+const (
+	COLOR_BLACK       = 0
+	COLOR_WHITE       = 1
+	COLOR_RED         = 2
+	COLOR_TEAL        = 3
+	COLOR_PURPLE      = 4
+	COLOR_GREEN       = 5
+	COLOR_DARK_BLUE   = 6
+	COLOR_YELLOW      = 7
+	COLOR_BROWN       = 8
+	COLOR_DARK_BROWN  = 9
+	COLOR_TAN         = 10
+	COLOR_DARK_GRAY   = 11
+	COLOR_MID_GRAY    = 12
+	COLOR_LIGHT_GREEN = 13
+	COLOR_LIGHT_BLUE  = 14
+	COLOR_LIGHT_GRAY  = 15
+)
 
 // NewGfx lets you create a new Gfx video card
 func NewGfx() *Gfx {
+	videoMemory := [Width * Height]byte{}
+	for i := range videoMemory {
+		videoMemory[i] = COLOR_LIGHT_BLUE
+	}
 	return &Gfx{
 		VideoMode:   GfxTextMode,
-		VideoMemory: [Width * Height]byte{},
-		TextMemory:  [Width / 8 * Height / 8]byte{},
+		VideoMemory: videoMemory,
+		TextMemory:  [Width / 8 * Height / 8]int{},
 		Render:      NewRender(),
 		Colors: [16 * 3]uint8{
 			// C64 colors :-)
@@ -62,8 +93,14 @@ func NewGfx() *Gfx {
 			0x50, 0x90, 0xd0,
 			0xb8, 0xb8, 0xb8,
 		},
-		BackgroundColor: 0,
+		BackgroundColor: COLOR_LIGHT_BLUE,
 		Font:            &Font8x8,
+		Cursor: &Cursor{
+			X:  0,
+			Y:  0,
+			Fg: COLOR_DARK_BLUE,
+			Bg: COLOR_LIGHT_BLUE,
+		},
 	}
 }
 
@@ -165,6 +202,8 @@ func (gfx *Gfx) SetPixel(x, y, ch int, fg, bg uint8) error {
 	switch {
 	case gfx.VideoMode == GfxTextMode:
 		if x >= 0 && y >= 0 && x < Width/8 && y < Height/8 && ch >= 0 && ch < len(*gfx.Font) {
+			gfx.TextMemory[y*40+x] = ch
+
 			for row := 0; row < 8; row++ {
 				symbolRow := (*gfx.Font)[ch][row]
 				for bit := 0; bit < 8; bit++ {
@@ -202,9 +241,46 @@ func (gfx *Gfx) SetPixel(x, y, ch int, fg, bg uint8) error {
 	return nil
 }
 
+func (gfx *Gfx) Println(message string, printNewLine bool) error {
+	for _, r := range message {
+		err := gfx.SetPixel(gfx.Cursor.X, gfx.Cursor.Y, int(r), gfx.Cursor.Fg, gfx.Cursor.Bg)
+		if err != nil {
+			return err
+		}
+		gfx.Cursor.X++
+		if gfx.Cursor.X > Width/8 {
+			gfx.Cursor.NewLine()
+		}
+	}
+	if printNewLine {
+		gfx.Cursor.NewLine()
+	}
+	return gfx.SetPixel(gfx.Cursor.X, gfx.Cursor.Y, int('_'), gfx.Cursor.Fg, gfx.Cursor.Bg)
+}
+
+func (gfx *Gfx) Backspace() error {
+	if gfx.Cursor.X > 0 {
+		gfx.SetPixel(gfx.Cursor.X, gfx.Cursor.Y, 0, gfx.Cursor.Fg, gfx.Cursor.Bg)
+		gfx.Cursor.X--
+		return gfx.SetPixel(gfx.Cursor.X, gfx.Cursor.Y, int('_'), gfx.Cursor.Fg, gfx.Cursor.Bg)
+	}
+	return fmt.Errorf("can't backspace")
+}
+
+func (cursor *Cursor) NewLine() {
+	cursor.Y++
+	cursor.X = 0
+	if cursor.Y == Height/8 {
+		// todo: scroll window up
+	}
+}
+
 func (gfx *Gfx) ClearVideo() error {
 	for i := range gfx.VideoMemory {
 		gfx.VideoMemory[i] = 0
+	}
+	for i := range gfx.TextMemory {
+		gfx.TextMemory[i] = 0
 	}
 	return nil
 }

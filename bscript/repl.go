@@ -51,7 +51,7 @@ func Repl(video *gfx.Gfx) {
 	ctx := CreateContext(nil)
 	ctx.Video = video
 
-	ctx.Builtins["print"](ctx, " **** Benji4000 bscript v1 ****")
+	ctx.Builtins["print"](ctx, "     **** Benji4000 bscript v1 ****")
 	ctx.Builtins["print"](ctx, "")
 	for true {
 		ctx.Builtins["print"](ctx, "Ready.")

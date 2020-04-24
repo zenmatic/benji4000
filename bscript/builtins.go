@@ -1,24 +1,50 @@
 package bscript
 
 import (
-	"bufio"
 	"fmt"
 	"math"
 	"math/rand"
-	"os"
 	"strings"
 )
 
 func print(ctx *Context, arg ...interface{}) (interface{}, error) {
-	fmt.Println(EvalString(arg[0]))
+	ctx.Video.Println(EvalString(arg[0]), true)
+	ctx.Video.UpdateVideo()
 	return nil, nil
 }
 
 func input(ctx *Context, arg ...interface{}) (interface{}, error) {
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Print(arg[0])
-	text, err := reader.ReadString('\n')
-	return strings.TrimSpace(text), err
+	ctx.Video.Println(EvalString(arg[0]), false)
+	ctx.Video.UpdateVideo()
+
+	var text strings.Builder
+	// start capturing input
+	ctx.Video.Render.StartInput <- 1
+
+	// block until input mode is over
+	for done := false; done != true; {
+		select {
+		case char := <-ctx.Video.Render.CharInput:
+			if char == 9 {
+				// try to remove it from the screen
+				err := ctx.Video.Backspace()
+				if err == nil {
+					// remove the last character from memory
+					s := text.String()
+					text = strings.Builder{}
+					text.WriteString(s[0 : len(s)-1])
+				}
+			} else {
+				text.WriteRune(char)
+				ctx.Video.Println(string(char), false)
+			}
+		case <-ctx.Video.Render.StopInput:
+			ctx.Video.Println("", true)
+			done = true
+		}
+		ctx.Video.UpdateVideo()
+	}
+	return strings.TrimSpace(text.String()), nil
 }
 
 func length(ctx *Context, arg ...interface{}) (interface{}, error) {

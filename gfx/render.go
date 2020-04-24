@@ -67,25 +67,36 @@ type Render struct {
 	Vao         uint32
 	// the desired framerate of the bscript code. This is how often the video texture is updated
 	Fps float64
+
+	// input mode channels
+	InputMode  bool
+	StartInput chan int
+	StopInput  chan int
+	CharInput  chan rune
 }
 
 func NewRender() *Render {
-	gfx := &Render{
+	// make sure this happens first
+	render := &Render{
 		PixelMemory: [Width * Height * 3]byte{},
 		Lock:        sync.Mutex{},
-		Window:      initGlfw(),
-		Program:     initOpenGL(),
-		Vao:         makeVao(),
 		Fps:         60,
+		InputMode:   false,
+		StartInput:  make(chan int, 100),
+		StopInput:   make(chan int, 100),
+		CharInput:   make(chan rune, 1000),
 	}
+	render.Window = initGlfw(render)
+	render.Program = initOpenGL()
+	render.Vao = makeVao()
 
 	runtime.LockOSThread()
 
-	return gfx
+	return render
 }
 
 // initGlfw initializes glfw and returns a Window to use.
-func initGlfw() *glfw.Window {
+func initGlfw(render *Render) *glfw.Window {
 	if err := glfw.Init(); err != nil {
 		panic(err)
 	}
@@ -100,6 +111,24 @@ func initGlfw() *glfw.Window {
 		panic(err)
 	}
 	window.MakeContextCurrent()
+	window.SetCharCallback(func(w *glfw.Window, char rune) {
+		if render.InputMode {
+			render.CharInput <- char
+		}
+	})
+	window.SetKeyCallback(func(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
+		// fmt.Printf("Key pressed: %v, Action=%v, scancode=%d\n", key, action, scancode)
+		if render.InputMode {
+			if action == glfw.Release {
+				if key == glfw.KeyEnter {
+					render.StopInput <- 1
+					render.InputMode = false
+				} else if key == glfw.KeyBackspace {
+					render.CharInput <- 9
+				}
+			}
+		}
+	})
 
 	return window
 }
@@ -228,6 +257,14 @@ func (render *Render) MainLoop() {
 			gl.TexSubImage2D(gl.TEXTURE_2D, 0, 0, 0, Width, Height, gl.RGB, gl.UNSIGNED_BYTE, gl.Ptr(&pixels[0]))
 			render.Lock.Unlock()
 			lastUpdate = currentTime
+		}
+
+		// are we in capture input mode?
+		select {
+		case <-render.StartInput:
+			render.InputMode = true
+		default:
+			// don't block
 		}
 
 		// gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)

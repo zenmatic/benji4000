@@ -10,5 +10,11 @@ def main() {
         x := x + 160 / STEPS;
         y := y + 200 / STEPS;
     }
+    c := 0;
+    while(c < 8) {
+        fillRect(c * 10, 0, c * 10 + 10, 10, c * 2);
+        fillRect(c * 10, 10, c * 10 + 10, 20, c * 2 + 1);
+        c := c + 1;
+    }
     updateVideo();
 }
