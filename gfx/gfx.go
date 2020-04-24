@@ -22,6 +22,7 @@ const (
 type Cursor struct {
 	X, Y   int
 	Fg, Bg uint8
+	Gfx    *Gfx
 }
 
 // Gfx is the "video card" api
@@ -63,13 +64,15 @@ const (
 	COLOR_LIGHT_GRAY  = 15
 )
 
+const CURSOR_FONT = 128 + 3
+
 // NewGfx lets you create a new Gfx video card
 func NewGfx() *Gfx {
 	videoMemory := [Width * Height]byte{}
 	for i := range videoMemory {
 		videoMemory[i] = COLOR_LIGHT_BLUE
 	}
-	return &Gfx{
+	gfx := &Gfx{
 		VideoMode:   GfxTextMode,
 		VideoMemory: videoMemory,
 		TextMemory:  [Width / 8 * Height / 8]int{},
@@ -102,6 +105,8 @@ func NewGfx() *Gfx {
 			Bg: COLOR_LIGHT_BLUE,
 		},
 	}
+	gfx.Cursor.Gfx = gfx
+	return gfx
 }
 
 func (gfx *Gfx) DrawCircle(x, y, r int, fg uint8) error {
@@ -255,29 +260,89 @@ func (gfx *Gfx) Println(message string, printNewLine bool) error {
 	if printNewLine {
 		gfx.Cursor.NewLine()
 	}
-	return gfx.SetPixel(gfx.Cursor.X, gfx.Cursor.Y, int('_'), gfx.Cursor.Fg, gfx.Cursor.Bg)
+	return gfx.Cursor.draw(true)
 }
 
 func (gfx *Gfx) Backspace() error {
 	if gfx.Cursor.X > 0 {
-		gfx.SetPixel(gfx.Cursor.X, gfx.Cursor.Y, 0, gfx.Cursor.Fg, gfx.Cursor.Bg)
+		gfx.Cursor.draw(false)
 		gfx.Cursor.X--
-		return gfx.SetPixel(gfx.Cursor.X, gfx.Cursor.Y, int('_'), gfx.Cursor.Fg, gfx.Cursor.Bg)
+		gfx.Cursor.draw(true)
+		return nil
 	}
 	return fmt.Errorf("can't backspace")
 }
 
+func (cursor *Cursor) draw(enabled bool) error {
+	if enabled {
+		cursor.Gfx.SetPixel(cursor.X, cursor.Y, CURSOR_FONT, cursor.Fg, cursor.Bg)
+	} else {
+		cursor.Gfx.SetPixel(cursor.X, cursor.Y, 0, cursor.Fg, cursor.Bg)
+	}
+	return nil
+}
+
 func (cursor *Cursor) NewLine() {
+	// erase the cursor
+	cursor.draw(false)
+
+	// newline
 	cursor.Y++
 	cursor.X = 0
+
+	// scroll screen if needed
 	if cursor.Y == Height/8 {
-		// todo: scroll window up
+		cursor.Y--
+		cursor.Gfx.Scroll(0, -8)
 	}
+}
+
+func (gfx *Gfx) Scroll(dx, dy int) error {
+	if dy > 0 {
+		offset := dy * Width
+		copy(gfx.VideoMemory[offset:], gfx.VideoMemory[0:Width*Height-offset])
+		for y := 0; y < dy; y++ {
+			for x := 0; x < Width; x++ {
+				gfx.VideoMemory[y*Width+x] = byte(gfx.BackgroundColor)
+			}
+		}
+	} else if dy < 0 {
+		offset := -dy * Width
+		copy(gfx.VideoMemory[:], gfx.VideoMemory[offset:Width*Height])
+		offset = (Height + dy) * Width
+		for y := 0; y < -dy; y++ {
+			for x := 0; x < Width; x++ {
+				gfx.VideoMemory[offset+y*Width+x] = byte(gfx.BackgroundColor)
+			}
+		}
+	}
+	if dx > 0 {
+		for y := 0; y < Height; y++ {
+			offset := y * Width
+			copy(gfx.VideoMemory[offset+dx:], gfx.VideoMemory[offset:offset+Width-1-dx])
+		}
+		for y := 0; y < Height; y++ {
+			for x := 0; x < dx; x++ {
+				gfx.VideoMemory[y*Width+x] = byte(gfx.BackgroundColor)
+			}
+		}
+	} else if dx < 0 {
+		for y := 0; y < Height; y++ {
+			offset := y * Width
+			copy(gfx.VideoMemory[offset:], gfx.VideoMemory[offset-dx:offset+Width-1])
+		}
+		for y := 0; y < Height; y++ {
+			for x := 0; x < dx; x++ {
+				gfx.VideoMemory[y*Width+Width-1+dx+x] = byte(gfx.BackgroundColor)
+			}
+		}
+	}
+	return nil
 }
 
 func (gfx *Gfx) ClearVideo() error {
 	for i := range gfx.VideoMemory {
-		gfx.VideoMemory[i] = 0
+		gfx.VideoMemory[i] = byte(gfx.BackgroundColor)
 	}
 	for i := range gfx.TextMemory {
 		gfx.TextMemory[i] = 0

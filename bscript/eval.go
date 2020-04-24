@@ -773,7 +773,7 @@ func Run(source string, showAst *bool, ctx *Context, video *gfx.Gfx) (interface{
 	if err != nil {
 		return nil, err
 	}
-	if *showAst {
+	if showAst != nil && *showAst {
 		os.Exit(0)
 	}
 

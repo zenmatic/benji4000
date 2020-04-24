@@ -212,6 +212,10 @@ func makeVao() uint32 {
 	return vao
 }
 
+func (render *Render) GetTicks() float64 {
+	return glfw.GetTime()
+}
+
 // MainLoop is the main rendering loop where the video ram is sent to the screen.
 func (render *Render) MainLoop() {
 	defer glfw.Terminate()

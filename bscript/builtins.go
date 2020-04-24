@@ -13,6 +13,15 @@ func print(ctx *Context, arg ...interface{}) (interface{}, error) {
 	return nil, nil
 }
 
+func trace(ctx *Context, arg ...interface{}) (interface{}, error) {
+	fmt.Println(EvalString(arg[0]))
+	return nil, nil
+}
+
+func getTicks(ctx *Context, arg ...interface{}) (interface{}, error) {
+	return ctx.Video.Render.GetTicks(), nil
+}
+
 func input(ctx *Context, arg ...interface{}) (interface{}, error) {
 	ctx.Video.Println(EvalString(arg[0]), false)
 	ctx.Video.UpdateVideo()
@@ -26,13 +35,17 @@ func input(ctx *Context, arg ...interface{}) (interface{}, error) {
 		select {
 		case char := <-ctx.Video.Render.CharInput:
 			if char == 9 {
-				// try to remove it from the screen
-				err := ctx.Video.Backspace()
-				if err == nil {
-					// remove the last character from memory
-					s := text.String()
-					text = strings.Builder{}
-					text.WriteString(s[0 : len(s)-1])
+				if text.Len() > 0 {
+					// try to remove it from the screen
+					err := ctx.Video.Backspace()
+					if err == nil {
+						// remove the last character from memory
+						s := text.String()
+						text = strings.Builder{}
+						text.WriteString(s[0 : len(s)-1])
+					} else {
+						fmt.Println("Can't backspace")
+					}
 				}
 			} else {
 				text.WriteRune(char)
@@ -118,6 +131,19 @@ func setVideoMode(ctx *Context, arg ...interface{}) (interface{}, error) {
 		return nil, fmt.Errorf("First parameter should be the number of the video mode")
 	}
 	ctx.Video.VideoMode = int(mode)
+	return nil, nil
+}
+
+func scroll(ctx *Context, arg ...interface{}) (interface{}, error) {
+	dx, ok := arg[0].(float64)
+	if !ok {
+		return nil, fmt.Errorf("First parameter should be a number")
+	}
+	dy, ok := arg[1].(float64)
+	if !ok {
+		return nil, fmt.Errorf("Second parameter should be a number")
+	}
+	ctx.Video.Scroll(int(dx), int(dy))
 	return nil, nil
 }
 
@@ -413,5 +439,8 @@ func Builtins() map[string]Builtin {
 		"fillRect":     fillRect,
 		"drawText":     drawText,
 		"drawFont":     drawFont,
+		"scroll":       scroll,
+		"trace":        trace,
+		"getTicks":     getTicks,
 	}
 }
