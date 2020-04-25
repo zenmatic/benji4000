@@ -337,6 +337,9 @@ func (gfx *Gfx) Scroll(dx, dy int) error {
 			}
 		}
 	}
+
+	// todo: also move TextMemory around
+
 	return nil
 }
 
