@@ -32,7 +32,7 @@ type Gfx struct {
 	// video memory
 	VideoMemory [Width * Height]byte
 	// text memory
-	TextMemory [Width / 8 * Height / 8]int
+	TextMemory [Width / 8 * Height / 8]int32
 	// the actual renderer
 	Render *Render
 	// Color definitions
@@ -75,7 +75,7 @@ func NewGfx() *Gfx {
 	gfx := &Gfx{
 		VideoMode:   GfxTextMode,
 		VideoMemory: videoMemory,
-		TextMemory:  [Width / 8 * Height / 8]int{},
+		TextMemory:  [Width / 8 * Height / 8]int32{},
 		Render:      NewRender(),
 		Colors: [16 * 3]uint8{
 			// C64 colors :-)
@@ -162,7 +162,7 @@ func (gfx *Gfx) FillRect(x, y, x2, y2 int, fg uint8) error {
 	}
 	for xx := x; xx != x2; xx += dx {
 		for yy := y; yy != y2; yy += dy {
-			gfx.SetPixel(xx, yy, 0, fg, 0)
+			gfx.SetPixel(xx, yy, fg)
 		}
 	}
 	return nil
@@ -183,7 +183,7 @@ func (gfx *Gfx) DrawLine(x, y, x2, y2 int, fg uint8) error {
 		dy := (ey - sy) / (ex - sx)
 		yy := sy
 		for xx := sx; xx <= ex; xx++ {
-			gfx.SetPixel(int(xx), int(yy), 0, fg, 0)
+			gfx.SetPixel(int(xx), int(yy), fg)
 			yy += dy
 		}
 	} else {
@@ -195,7 +195,7 @@ func (gfx *Gfx) DrawLine(x, y, x2, y2 int, fg uint8) error {
 		dx := (ex - sx) / (ey - sy)
 		xx := sx
 		for yy := sy; yy <= ey; yy++ {
-			gfx.SetPixel(int(xx), int(yy), 0, fg, 0)
+			gfx.SetPixel(int(xx), int(yy), fg)
 			xx += dx
 		}
 	}
@@ -203,36 +203,63 @@ func (gfx *Gfx) DrawLine(x, y, x2, y2 int, fg uint8) error {
 	return nil
 }
 
-func (gfx *Gfx) SetPixel(x, y, ch int, fg, bg uint8) error {
-	switch {
-	case gfx.VideoMode == GfxTextMode:
-		if x >= 0 && y >= 0 && x < Width/8 && y < Height/8 && ch >= 0 && ch < len(*gfx.Font) {
-			gfx.TextMemory[y*40+x] = ch
+func (gfx *Gfx) DrawText(x, y int, text string, fg, bg uint8) error {
+	step := 8
+	if gfx.VideoMode == GfxTextMode {
+		step = 1
+	}
+	for index, ch := range text {
+		gfx.DrawFont(x+index*step, y, ch, fg, bg)
+	}
+	return nil
+}
 
-			for row := 0; row < 8; row++ {
-				symbolRow := (*gfx.Font)[ch][row]
-				for bit := 0; bit < 8; bit++ {
-					color := bg
-					if (symbolRow>>bit)&1 == 1 {
-						color = fg
-					}
-					gfx.VideoMemory[(y*8+row)*Width+x*8+bit] = color
+func (gfx *Gfx) DrawFont(x, y int, ch rune, fg, bg uint8) error {
+	if gfx.VideoMode == GfxTextMode {
+		if x >= 0 && y >= 0 && x < Width/8 && y < Height/8 && ch >= 0 {
+			gfx.TextMemory[y*40+x] = ch
+		}
+	}
+	for row := 0; row < 8; row++ {
+		symbolRow := (*gfx.Font)[ch][row]
+		for bit := 0; bit < 8; bit++ {
+			color := bg
+			if (symbolRow>>bit)&1 == 1 {
+				color = fg
+			}
+			if gfx.VideoMode == GfxTextMode {
+				px := x*8 + bit
+				py := y*8 + row
+				if px >= 0 && py >= 0 && px < Width && py < Height {
+					gfx.VideoMemory[py*Width+px] = color
 				}
+			} else {
+				gfx.SetPixel(x+bit, y+row, color)
 			}
 		}
+	}
+	return nil
+}
+
+func (gfx *Gfx) SetPixel(x, y int, fg uint8) error {
+	switch {
+	case gfx.VideoMode == GfxTextMode:
+		// do nothing
 	case gfx.VideoMode == GfxHiresMode:
 		if x >= 0 && y >= 0 && x < Width && y < Height {
 			// set the pixel asked for
 			gfx.VideoMemory[y*Width+x] = byte(fg)
 
-			// set other pixels (if >0) in this 8x8 area
-			bx := (x / 8) * 8
-			by := (y / 8) * 8
-			for xx := 0; xx < 8; xx++ {
-				for yy := 0; yy < 8; yy++ {
-					addr := (by+yy)*Width + (bx + xx)
-					if gfx.VideoMemory[addr] != gfx.BackgroundColor {
-						gfx.VideoMemory[addr] = byte(fg)
+			if fg != gfx.BackgroundColor {
+				// set other pixels (if >0) in this 8x8 area
+				bx := (x / 8) * 8
+				by := (y / 8) * 8
+				for xx := 0; xx < 8; xx++ {
+					for yy := 0; yy < 8; yy++ {
+						addr := (by+yy)*Width + (bx + xx)
+						if gfx.VideoMemory[addr] != gfx.BackgroundColor {
+							gfx.VideoMemory[addr] = byte(fg)
+						}
 					}
 				}
 			}
@@ -248,7 +275,7 @@ func (gfx *Gfx) SetPixel(x, y, ch int, fg, bg uint8) error {
 
 func (gfx *Gfx) Println(message string, printNewLine bool) error {
 	for _, r := range message {
-		err := gfx.SetPixel(gfx.Cursor.X, gfx.Cursor.Y, int(r), gfx.Cursor.Fg, gfx.Cursor.Bg)
+		err := gfx.DrawFont(gfx.Cursor.X, gfx.Cursor.Y, r, gfx.Cursor.Fg, gfx.Cursor.Bg)
 		if err != nil {
 			return err
 		}
@@ -275,9 +302,9 @@ func (gfx *Gfx) Backspace() error {
 
 func (cursor *Cursor) draw(enabled bool) error {
 	if enabled {
-		cursor.Gfx.SetPixel(cursor.X, cursor.Y, CURSOR_FONT, cursor.Fg, cursor.Bg)
+		cursor.Gfx.DrawFont(cursor.X, cursor.Y, CURSOR_FONT, cursor.Fg, cursor.Bg)
 	} else {
-		cursor.Gfx.SetPixel(cursor.X, cursor.Y, 0, cursor.Fg, cursor.Bg)
+		cursor.Gfx.DrawFont(cursor.X, cursor.Y, 0, cursor.Fg, cursor.Bg)
 	}
 	return nil
 }

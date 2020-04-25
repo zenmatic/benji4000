@@ -323,29 +323,29 @@ func (e *Expression) Evaluate(ctx *Context) (interface{}, error) {
 }
 
 func (ctx *Context) debug(message string) {
-	fmt.Println(message)
+	ctx.Builtins["print"](ctx, message)
 	indent := "  "
-	fmt.Println("Constants:")
+	ctx.Builtins["print"](ctx, "Constants:")
 	for k, v := range ctx.Consts {
-		fmt.Printf("  %s=%v\n", k, v)
+		ctx.Builtins["print"](ctx, fmt.Sprintf("  %s=%v", k, v))
 	}
-	fmt.Println("Closures:")
+	ctx.Builtins["print"](ctx, "Closures:")
 	for closure := ctx.Closure; closure != nil; closure = closure.Parent {
-		fmt.Println("-----------------")
-		fmt.Printf("%sFunction: %s\n", indent, closure.Function)
-		fmt.Printf("%sVars: %v\n", indent, closure.Vars)
-		fmt.Printf("%sDefs: %v\n", indent, closure.Defs)
+		ctx.Builtins["print"](ctx, "-----------------")
+		ctx.Builtins["print"](ctx, fmt.Sprintf("%sFunction: %s\n", indent, closure.Function))
+		ctx.Builtins["print"](ctx, fmt.Sprintf("%sVars: %v\n", indent, closure.Vars))
+		ctx.Builtins["print"](ctx, fmt.Sprintf("%sDefs: %v\n", indent, closure.Defs))
 		indent = indent + "  "
 	}
-	fmt.Println("------------------------------------")
-	fmt.Println("Runtime Call Stack:")
+	ctx.Builtins["print"](ctx, "------------------------------------")
+	ctx.Builtins["print"](ctx, "Runtime Call Stack:")
 	indent = "  "
 	for _, runtime := range ctx.RuntimeStack {
-		fmt.Printf("%s%s at %s Vars=%s\n", indent, runtime.Function, runtime.Pos, runtime.Vars)
+		ctx.Builtins["print"](ctx, fmt.Sprintf("%s%s at %s Vars=%s\n", indent, runtime.Function, runtime.Pos, runtime.Vars))
 		indent = indent + "  "
 	}
-	fmt.Println("------------------------------------")
-	fmt.Printf("Currently: %s\n", ctx.Pos)
+	ctx.Builtins["print"](ctx, "------------------------------------")
+	ctx.Builtins["print"](ctx, fmt.Sprintf("Currently: %s\n", ctx.Pos))
 }
 
 func evalBuiltinCall(ctx *Context, c *Call, builtin Builtin, args []interface{}) (interface{}, error) {
@@ -731,7 +731,7 @@ func CreateContext(program *Program) *Context {
 		Parent:   nil,
 	}
 	return &Context{
-		Consts:       map[string]interface{}{},
+		Consts:       Constants(),
 		Builtins:     Builtins(),
 		Closure:      global,
 		RuntimeStack: []Runtime{},
@@ -739,7 +739,6 @@ func CreateContext(program *Program) *Context {
 		Program:      program,
 		Video:        nil,
 	}
-
 }
 
 func load(source string, showAst *bool) (*Program, error) {

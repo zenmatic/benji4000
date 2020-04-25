@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 
 	"github.com/uzudil/benji4000/bscript"
 	"github.com/uzudil/benji4000/gfx"
@@ -21,7 +22,10 @@ func main() {
 
 	if source != "" {
 		go func() {
-			bscript.Run(source, showAst, nil, video)
+			_, err := bscript.Run(source, showAst, nil, video)
+			if err != nil {
+				fmt.Printf("Error: %v\n", err)
+			}
 		}()
 	} else {
 		go repl(video)
