@@ -38,7 +38,7 @@ type Gfx struct {
 	// Color definitions
 	Colors [16 * 3]uint8
 	// the global background color
-	BackgroundColor int
+	BackgroundColor byte
 	// font memory
 	Font *[512][8]uint8
 	// the cursor in interactive mode
@@ -231,7 +231,7 @@ func (gfx *Gfx) SetPixel(x, y, ch int, fg, bg uint8) error {
 			for xx := 0; xx < 8; xx++ {
 				for yy := 0; yy < 8; yy++ {
 					addr := (by+yy)*Width + (bx + xx)
-					if gfx.VideoMemory[addr] > 0 {
+					if gfx.VideoMemory[addr] != gfx.BackgroundColor {
 						gfx.VideoMemory[addr] = byte(fg)
 					}
 				}
@@ -303,7 +303,7 @@ func (gfx *Gfx) Scroll(dx, dy int) error {
 		copy(gfx.VideoMemory[offset:], gfx.VideoMemory[0:Width*Height-offset])
 		for y := 0; y < dy; y++ {
 			for x := 0; x < Width; x++ {
-				gfx.VideoMemory[y*Width+x] = byte(gfx.BackgroundColor)
+				gfx.VideoMemory[y*Width+x] = gfx.BackgroundColor
 			}
 		}
 	} else if dy < 0 {
@@ -312,7 +312,7 @@ func (gfx *Gfx) Scroll(dx, dy int) error {
 		offset = (Height + dy) * Width
 		for y := 0; y < -dy; y++ {
 			for x := 0; x < Width; x++ {
-				gfx.VideoMemory[offset+y*Width+x] = byte(gfx.BackgroundColor)
+				gfx.VideoMemory[offset+y*Width+x] = gfx.BackgroundColor
 			}
 		}
 	}
@@ -323,7 +323,7 @@ func (gfx *Gfx) Scroll(dx, dy int) error {
 		}
 		for y := 0; y < Height; y++ {
 			for x := 0; x < dx; x++ {
-				gfx.VideoMemory[y*Width+x] = byte(gfx.BackgroundColor)
+				gfx.VideoMemory[y*Width+x] = gfx.BackgroundColor
 			}
 		}
 	} else if dx < 0 {
