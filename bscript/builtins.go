@@ -278,6 +278,15 @@ func fillCircle(ctx *Context, arg ...interface{}) (interface{}, error) {
 	return nil, ctx.Video.FillCircle(int(x), int(y), int(r), uint8(color))
 }
 
+func setBackground(ctx *Context, arg ...interface{}) (interface{}, error) {
+	c, ok := arg[0].(float64)
+	if !ok {
+		return nil, fmt.Errorf("First parameter should be a number")
+	}
+	ctx.Video.BackgroundColor = byte(c)
+	return nil, nil
+}
+
 func fillRect(ctx *Context, arg ...interface{}) (interface{}, error) {
 	x, ok := arg[0].(float64)
 	if !ok {
@@ -425,30 +434,31 @@ func assert(ctx *Context, arg ...interface{}) (interface{}, error) {
 
 func Builtins() map[string]Builtin {
 	return map[string]Builtin{
-		"print":        print,
-		"input":        input,
-		"len":          length,
-		"keys":         keys,
-		"substr":       substr,
-		"replace":      replace,
-		"debug":        debug,
-		"assert":       assert,
-		"setVideoMode": setVideoMode,
-		"setPixel":     setPixel,
-		"random":       random,
-		"updateVideo":  updateVideo,
-		"clearVideo":   clearVideo,
-		"drawLine":     drawLine,
-		"drawCircle":   drawCircle,
-		"fillCircle":   fillCircle,
-		"drawRect":     drawRect,
-		"fillRect":     fillRect,
-		"drawText":     drawText,
-		"drawFont":     drawFont,
-		"scroll":       scroll,
-		"trace":        trace,
-		"getTicks":     getTicks,
-		"isKeyDown":    isKeyDown,
+		"print":         print,
+		"input":         input,
+		"len":           length,
+		"keys":          keys,
+		"substr":        substr,
+		"replace":       replace,
+		"debug":         debug,
+		"assert":        assert,
+		"setVideoMode":  setVideoMode,
+		"setPixel":      setPixel,
+		"random":        random,
+		"updateVideo":   updateVideo,
+		"clearVideo":    clearVideo,
+		"drawLine":      drawLine,
+		"drawCircle":    drawCircle,
+		"fillCircle":    fillCircle,
+		"drawRect":      drawRect,
+		"fillRect":      fillRect,
+		"drawText":      drawText,
+		"drawFont":      drawFont,
+		"scroll":        scroll,
+		"trace":         trace,
+		"getTicks":      getTicks,
+		"isKeyDown":     isKeyDown,
+		"setBackground": setBackground,
 	}
 }
 

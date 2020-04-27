@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
 
 	"github.com/uzudil/benji4000/bscript"
 	"github.com/uzudil/benji4000/gfx"
@@ -26,6 +27,7 @@ func main() {
 			if err != nil {
 				fmt.Printf("Error: %v\n", err)
 			}
+			os.Exit(0)
 		}()
 	} else {
 		go repl(video)

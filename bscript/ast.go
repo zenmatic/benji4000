@@ -129,6 +129,7 @@ type Value struct {
 	AnonFun       *AnonFun      `| @@`
 	Null          *string       `| @"null"`
 	Number        *SignedNumber `| @@`
+	Boolean       *string       `| @("true" | "false")`
 	Call          *Call         `| @@`
 	ArrayElement  *ArrayElement `| @@`
 	Variable      *Variable     `| @@`
@@ -224,11 +225,23 @@ type OpCmp struct {
 	Cmp      *Cmp     `@@`
 }
 
+type BoolTerm struct {
+	Left  *Cmp     `@@`
+	Right []*OpCmp `{ @@ }`
+}
+
+type OpBoolTerm struct {
+	Pos lexer.Position
+
+	Operator Operator  `@("&" "&" | "|" "|")`
+	Right    *BoolTerm `@@`
+}
+
 type Expression struct {
 	Pos lexer.Position
 
-	Left  *Cmp     `@@`
-	Right []*OpCmp `{ @@ }`
+	BoolTerm   *BoolTerm     `@@`
+	OpBoolTerm []*OpBoolTerm `{ @@ }`
 }
 
 var (

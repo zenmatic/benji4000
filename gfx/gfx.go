@@ -343,10 +343,13 @@ func (gfx *Gfx) Scroll(dx, dy int) error {
 			}
 		}
 	}
+	if gfx.VideoMode == GfxMultiColorMode {
+		dx *= 2
+	}
 	if dx > 0 {
 		for y := 0; y < Height; y++ {
 			offset := y * Width
-			copy(gfx.VideoMemory[offset+dx:], gfx.VideoMemory[offset:offset+Width-1-dx])
+			copy(gfx.VideoMemory[offset+dx:], gfx.VideoMemory[offset:offset+Width-dx])
 		}
 		for y := 0; y < Height; y++ {
 			for x := 0; x < dx; x++ {
@@ -356,11 +359,11 @@ func (gfx *Gfx) Scroll(dx, dy int) error {
 	} else if dx < 0 {
 		for y := 0; y < Height; y++ {
 			offset := y * Width
-			copy(gfx.VideoMemory[offset:], gfx.VideoMemory[offset-dx:offset+Width-1])
+			copy(gfx.VideoMemory[offset:], gfx.VideoMemory[offset-dx:offset+Width])
 		}
 		for y := 0; y < Height; y++ {
-			for x := 0; x < dx; x++ {
-				gfx.VideoMemory[y*Width+Width-1+dx+x] = byte(gfx.BackgroundColor)
+			for x := 0; x < -dx; x++ {
+				gfx.VideoMemory[y*Width+Width-1-x] = byte(gfx.BackgroundColor)
 			}
 		}
 	}

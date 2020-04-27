@@ -73,6 +73,8 @@ func (v *Value) Evaluate(ctx *Context) (interface{}, error) {
 			return -v.Number.Number, nil
 		}
 		return v.Number.Number, nil
+	case v.Boolean != nil:
+		return *v.Boolean == "true", nil
 	case v.Null != nil:
 		return nil, nil
 	case v.Map != nil:
@@ -301,18 +303,67 @@ func (o *OpCmp) Evaluate(ctx *Context, lhs interface{}) (interface{}, error) {
 		case ">=":
 			return lhs >= rhs, nil
 		}
+	case bool:
+		rhs, ok := rhs.(bool)
+		if !ok {
+			return nil, lexer.Errorf(o.Pos, "rhs of %s must be a string", o.Operator)
+		}
+		switch o.Operator {
+		case "=":
+			return lhs == rhs, nil
+		case "!=":
+			return lhs != rhs, nil
+		}
 	default:
 		return nil, lexer.Errorf(o.Pos, "lhs of %s must be a number or string", o.Operator)
 	}
 	panic("unreachable")
 }
 
-func (e *Expression) Evaluate(ctx *Context) (interface{}, error) {
-	lhs, err := e.Left.Evaluate(ctx)
+func (b *OpBoolTerm) Evaluate(ctx *Context, lhs interface{}) (interface{}, error) {
+	rhs, err := b.Right.Evaluate(ctx)
 	if err != nil {
 		return nil, err
 	}
-	for _, right := range e.Right {
+	switch lhs := lhs.(type) {
+	case bool:
+		rhs, ok := rhs.(bool)
+		if !ok {
+			return nil, lexer.Errorf(b.Pos, "rhs of %s must be a boolean", b.Operator)
+		}
+		switch b.Operator {
+		case "&&":
+			return rhs && lhs, nil
+		case "||":
+			return rhs || lhs, nil
+		}
+	default:
+		return nil, lexer.Errorf(b.Pos, "lhs of %s must be a boolean", b.Operator)
+	}
+	panic("unreachable")
+}
+
+func (b *BoolTerm) Evaluate(ctx *Context) (interface{}, error) {
+	lhs, err := b.Left.Evaluate(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, right := range b.Right {
+		rhs, err := right.Evaluate(ctx, lhs)
+		if err != nil {
+			return nil, err
+		}
+		lhs = rhs
+	}
+	return lhs, nil
+}
+
+func (e *Expression) Evaluate(ctx *Context) (interface{}, error) {
+	lhs, err := e.BoolTerm.Evaluate(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, right := range e.OpBoolTerm {
 		rhs, err := right.Evaluate(ctx, lhs)
 		if err != nil {
 			return nil, err
@@ -753,7 +804,7 @@ func load(source string, showAst *bool) (*Program, error) {
 	if showAst != nil && *showAst {
 		// print the ast
 		repr.Println(ast)
-		return nil, nil
+		os.Exit(0)
 	}
 	return ast, nil
 }
@@ -771,9 +822,6 @@ func Run(source string, showAst *bool, ctx *Context, video *gfx.Gfx) (interface{
 	ast, err := load(source, showAst)
 	if err != nil {
 		return nil, err
-	}
-	if showAst != nil && *showAst {
-		os.Exit(0)
 	}
 
 	ctx, err = ast.init(ctx)
@@ -841,8 +889,7 @@ func (program *Program) Evaluate(ctx *Context) (interface{}, error) {
 			},
 		},
 	}
-	result, err := call.Evaluate(ctx)
-	return result, err
+	return call.Evaluate(ctx)
 }
 
 func evaluateFloats(ctx *Context, lhs interface{}, rhsExpr Evaluatable) (float64, float64, error) {
