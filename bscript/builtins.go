@@ -365,8 +365,13 @@ func isKeyDown(ctx *Context, arg ...interface{}) (interface{}, error) {
 	if !ok {
 		return nil, fmt.Errorf("First argument should be a number")
 	}
-	action := ctx.Video.Render.Window.GetKey(glfw.Key(key))
-	return (action == glfw.Press || action == glfw.Repeat), nil
+	// action := ctx.Video.Render.Window.GetKey(glfw.Key(key))
+	// return (action == glfw.Press || action == glfw.Repeat), nil
+	gfx.KeyLock.Lock()
+	b := gfx.KeyDown[glfw.Key(key)]
+	gfx.KeyLock.Unlock()
+
+	return b, nil
 }
 
 func assert(ctx *Context, arg ...interface{}) (interface{}, error) {

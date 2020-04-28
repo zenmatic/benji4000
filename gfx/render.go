@@ -47,7 +47,9 @@ const (
 )
 
 var (
-	screen = []float32{
+	KeyLock = sync.Mutex{}
+	KeyDown = map[glfw.Key]bool{}
+	screen  = []float32{
 		// xyz		color		texture coords
 		-1, 1, 0, 1, 1, 1, 0, 0,
 		-1, -1, 0, 1, 1, 1, 0, 1,
@@ -128,6 +130,10 @@ func initGlfw(render *Render) *glfw.Window {
 				}
 			}
 		}
+
+		KeyLock.Lock()
+		KeyDown[key] = action == glfw.Repeat || action == glfw.Press
+		KeyLock.Unlock()
 	})
 
 	return window

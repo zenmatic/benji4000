@@ -84,14 +84,8 @@ def movePlayer() {
                     fillRect(xp, 200 - ground[groundIndex - 1], xp + GROUND_STEP, 200, COLOR_GREEN);
                 }
             } else {
-                if(player["dir"] = 1) {
-                    if(player["x"] < 160) {
-                        player["x"] := player["x"] + 1;
-                    }
-                } else {
-                    if(player["x"] > 0) {
-                        player["x"] := player["x"] - 1;
-                    }
+                if(player["x"] < 160 && player["x"] > 0) {
+                    player["x"] := player["x"] + player["dir"];
                 }
             } 
         }
@@ -130,24 +124,6 @@ def initGround() {
     }
 }
 
-def changeDir(dir) {
-    if(dir = -1) {
-        if(player["dir"] > -1) {
-            if(getTicks() > player["dirchange"]) {
-                player["dir"] := player["dir"] - 1;
-                
-            }
-        }
-    } else {
-        if(player["dir"] < 1) {
-            if(getTicks() > player["dirchange"]) {
-                player["dir"] := player["dir"] + 1;
-            }
-        }
-    }
-    player["dirchange"] := getTicks() + 0.25;
-}
-
 def canScroll() {
     if(player["dir"] = 1 && groundIndex >= len(ground) - (160/GROUND_STEP) - 1) {
         return false;
@@ -171,20 +147,40 @@ def main() {
         x := x + GROUND_STEP;
     }
 
+    turnDir := 0;
     while(1=1) {
         clearPlayer();
 
         if(isKeyDown(KeyLeft)) {
-            changeDir(-1);
+            if(turnDir != -1) {
+                player["dirchange"] := 0;
+            }
+            turnDir := -1;
+        } else {
+            if(isKeyDown(KeyRight)) {
+                if(turnDir != 1) {
+                    player["dirchange"] := 0;
+                }
+                turnDir := 1;
+            } else {
+                turnDir := 0;
+            }
         }
-        if(isKeyDown(KeyRight)) {
-            changeDir(1);
-        }        
         if(isKeyDown(KeyUp)) {
             player["y"] := player["y"] - SPEED_Y;
         }
         if(isKeyDown(KeyDown)) {
             player["y"] := player["y"] + SPEED_Y;
+        }
+
+        if(getTicks() > player["dirchange"]) {
+            if(turnDir = -1 && player["dir"] > -1) {
+                player["dir"] := player["dir"] - 1;
+            }
+            if(turnDir = 1 &&  player["dir"] < 1) {
+                player["dir"] := player["dir"] + 1;
+            }
+            player["dirchange"] := getTicks() + 0.15;
         }
 
         movePlayer();
