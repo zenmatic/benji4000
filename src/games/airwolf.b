@@ -11,7 +11,7 @@ const HIT_GROUND = 1;
 const HIT_PAD = 2;
 
 player := {
-    "x": 40,
+    "x": 120, 
     "y": 100,
     "dir": 0,
     "rotor": 0,
@@ -24,7 +24,7 @@ player := {
     "gravity_enabled": true
 };
 ground := [];
-groundIndex := 50;    
+groundIndex := 0;    
 scrollStep := 0;
 turnDir := 0;
 
@@ -180,9 +180,12 @@ def drawPlayerHealthy() {
 
     # animate the rotor
     if(getTicks() > player["switch"]) {
-        drawRotor(COLOR_DARK_BLUE);
-        player["rotor"] := player["rotor"] + 1;
-        if (player["rotor"] >= len(ROTOR)) {
+        if(player["gravity_enabled"]) {
+            player["rotor"] := player["rotor"] + 1;
+            if (player["rotor"] >= len(ROTOR)) {
+                player["rotor"] := 0;
+            }
+        } else {
             player["rotor"] := 0;
         }
         player["switch"] := getTicks() + 0.025;
