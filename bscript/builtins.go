@@ -360,6 +360,30 @@ func debug(ctx *Context, arg ...interface{}) (interface{}, error) {
 	return nil, nil
 }
 
+func toAbs(ctx *Context, arg ...interface{}) (interface{}, error) {
+	n, ok := arg[0].(float64)
+	if !ok {
+		return nil, fmt.Errorf("First argument should be a number")
+	}
+	return math.Abs(n), nil
+}
+
+func toInt(ctx *Context, arg ...interface{}) (interface{}, error) {
+	n, ok := arg[0].(float64)
+	if !ok {
+		return nil, fmt.Errorf("First argument should be a number")
+	}
+	return math.Round(n), nil
+}
+
+func toRound(ctx *Context, arg ...interface{}) (interface{}, error) {
+	n, ok := arg[0].(float64)
+	if !ok {
+		return nil, fmt.Errorf("First argument should be a number")
+	}
+	return float64(int(n)), nil
+}
+
 func isKeyDown(ctx *Context, arg ...interface{}) (interface{}, error) {
 	key, ok := arg[0].(float64)
 	if !ok {
@@ -464,6 +488,9 @@ func Builtins() map[string]Builtin {
 		"getTicks":      getTicks,
 		"isKeyDown":     isKeyDown,
 		"setBackground": setBackground,
+		"int":           toInt,
+		"round":         toRound,
+		"abs":           toAbs,
 	}
 }
 
