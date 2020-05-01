@@ -69,4 +69,6 @@ def main() {
     assert(list, ["abc", "def", "ghi"]);
     print("After create in function, a=" + a);
     print("After create in function, list=" + list);
+
+    print("Done");
 }

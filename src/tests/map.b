@@ -59,4 +59,6 @@ def main() {
     new_map := make_map();
     assert(new_map, { "xxx": 123, "yyy": "zaza" });
     print("new map created in a function: " + new_map);
+
+    print("Done");
 }

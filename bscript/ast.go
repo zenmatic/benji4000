@@ -165,8 +165,8 @@ type ArrayIndex struct {
 type Array struct {
 	Pos lexer.Position
 
-	LeftValue   *Value   `"[" @@*`
-	RightValues []*Value `( "," @@ )* "]"`
+	LeftValue   *Expression   `"[" @@*`
+	RightValues []*Expression `( "," @@ )* "]"`
 }
 
 type Map struct {
@@ -179,8 +179,8 @@ type Map struct {
 type NameValuePair struct {
 	Pos lexer.Position
 
-	Name  string `@String ":"`
-	Value *Value `@@`
+	Name  string      `@String ":"`
+	Value *Expression `@@`
 }
 
 type Factor struct {
