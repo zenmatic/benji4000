@@ -28,7 +28,10 @@ player := {
     "lives": 5,
     "gravity_enabled": true,
     "fuel": 100,
-    "fuelTimer": -1
+    "fuelTimer": -1,
+    "carry": 0,
+    "saved": 0,
+    "killed": 0
 };
 ground := [];
 groundIndex := 0;    
@@ -44,6 +47,7 @@ soldiers := [
     932 * GROUND_STEP, 
     928 * GROUND_STEP 
 ];
+soldierMoveTimer := 0;
 waiveTimer := 0;
 waiveIndex := 0;
 
@@ -233,6 +237,16 @@ def drawPlayer() {
             player["y"] := 100;
             player["explode"] := 0;
             player["fuel"] := 100;
+            player["killed"] := player["killed"] + player["carry"];
+            player["carry"] := 0;
+            i := 0; 
+            while(i < len(soldiers)) {
+                if(soldiers[i] = -1000) {
+                    del soldiers[i];
+                } else {
+                    i := i + 1;
+                }
+            }
         } else {
             # collision check
             collision := testCollision();
@@ -318,15 +332,21 @@ def drawGround() {
             h := 200 - ground[gi]["pad"];
             if(gi = 25) {
                 # draw the flag
-                drawLine(x, h - 14, x, h, COLOR_LIGHT_GRAY);
-                drawLine(x + 1, h - 14, x + 7, h - 14, COLOR_RED);
-                drawLine(x + 1, h - 13, x + 7, h - 13, COLOR_WHITE);
-                drawLine(x + 1, h - 12, x + 7, h - 12, COLOR_RED);
-                drawLine(x + 1, h - 11, x + 7, h - 11, COLOR_WHITE);
-                drawLine(x + 1, h - 10, x + 7, h - 10, COLOR_RED);
-                drawLine(x + 1, h - 9, x + 7, h - 9, COLOR_WHITE);
-                drawLine(x + 1, h - 8, x + 7, h - 8, COLOR_RED);
-                fillRect(x + 1, h - 14, x + 4, h - 10, COLOR_LIGHT_BLUE);
+                drawLine(x - 3, h - 18, x - 3, h, COLOR_LIGHT_GRAY);
+                drawLine(x - 2, h - 18, x + 5, h - 18, COLOR_RED);
+                drawLine(x - 2, h - 17, x + 5, h - 17, COLOR_WHITE);
+                drawLine(x - 2, h - 16, x + 5, h - 16, COLOR_RED);
+                drawLine(x - 2, h - 15, x + 5, h - 15, COLOR_WHITE);
+                drawLine(x - 2, h - 14, x + 5, h - 14, COLOR_RED);
+                drawLine(x - 2, h - 13, x + 5, h - 13, COLOR_WHITE);
+                drawLine(x - 2, h - 12, x + 5, h - 12, COLOR_RED);
+                fillRect(x - 2, h - 18, x + 2, h - 14, COLOR_LIGHT_BLUE);
+                # draw the house
+                drawLine(x - 2, h - 5, x + 4, h - 8, COLOR_BROWN);
+                drawLine(x + 4, h - 8, x + 10, h - 5, COLOR_BROWN);
+                fillRect(x, h - 6, x + 8, h, COLOR_BROWN);
+                fillRect(x + 3, h - 7, x + 6, h - 6, COLOR_BROWN);
+                fillRect(x + 3, h - 5, x + 5, h - 2, COLOR_YELLOW);
             }
             fillRect(x + scrollStep, h, x + scrollStep + GROUND_STEP, 200, COLOR_DARK_GRAY);
         } else {        
@@ -348,6 +368,43 @@ def drawGround() {
     }
 }
 
+def moveSoldiers() {
+    # move soldiers towards nearby landed chopper
+    if(player["gravity_enabled"] = false && getTicks() > soldierMoveTimer) {
+        i := 0;
+        while(i < len(soldiers)) {
+            if(soldiers[i] = -1000 && groundIndex < 300) {
+                # exit chopper
+                soldiers[i] := (25 + random() * 10) * GROUND_STEP;
+                player["carry"] := player["carry"] - 1;
+                player["saved"] := player["saved"] + 1;
+            } else {
+                # need to be saved
+                if(soldiers[i] > 300 && player["carry"] < 4) {
+                    sx := soldiers[i] - groundIndex * GROUND_STEP;
+                    d := sx - player["x"];
+                    if(abs(d) < 10 * GROUND_STEP) {
+                        if(abs(d) < GROUND_STEP) {
+                            # enter chopper
+                            player["carry"] := player["carry"] + 1;
+                            soldiers[i] := -1000;
+                        } else {
+                            # move towards chopper
+                            if(d < 0) {
+                                soldiers[i] := soldiers[i] + 0.1;
+                            } else {
+                                soldiers[i] := soldiers[i] - 0.1;
+                            }
+                        }
+                    }                    
+                }
+            }
+            i := i + 1;
+        }
+        soldierMoveTimer := getTicks() + 0.01;
+    }
+}
+
 def drawUI() {
     drawText(0, 0, COLOR_LIGHT_BLUE, COLOR_DARK_BLUE, "FUEL:");
     color := COLOR_GREEN;
@@ -359,6 +416,7 @@ def drawUI() {
     }
     fillRect(40, 3, 40 + (160 - 44) * (player["fuel"]/100), 5, color);
     drawText(0, 10, COLOR_LIGHT_BLUE, COLOR_DARK_BLUE, "LIFE:" + player["lives"]);
+    drawText(160 - 70 - 2, 10, COLOR_LIGHT_BLUE, COLOR_DARK_BLUE, "CARRY:" + player["carry"] + "/4");
 }
 
 def main() {
@@ -369,11 +427,23 @@ def main() {
     while(1=1) {
         clearVideo();
         if(player["lives"] > 0) {        
-            handleInput();
-            movePlayer();
-            drawGround();
-            drawPlayer();
-            drawUI();
+            if(player["saved"] < len(soldiers)) {
+                handleInput();
+                movePlayer();
+                moveSoldiers();
+                drawGround();
+                drawPlayer();
+                drawUI();
+            } else {
+                fillRect(40, 60, 120, 140, COLOR_GREEN);
+                drawText(45, 87, COLOR_BLACK, COLOR_GREEN, "Congrats!");
+                if(player["killed"] = 0) {
+                    drawText(45, 97, COLOR_BLACK, COLOR_GREEN, "Game Won!");
+                } else {
+                    drawText(45, 97, COLOR_BLACK, COLOR_GREEN, "Killed: " + player["killed"]);
+                    drawText(45, 107, COLOR_BLACK, COLOR_GREEN, "Saved: " + player["saved"]);
+                }
+            }
         } else {
             fillRect(40, 60, 120, 140, COLOR_YELLOW);
             drawText(45, 94, COLOR_BLACK, COLOR_YELLOW, "Game Over");
