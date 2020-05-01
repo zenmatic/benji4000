@@ -33,6 +33,8 @@ player := {
     "saved": 0,
     "killed": 0
 };
+title := true;
+info := true;
 ground := [];
 groundIndex := 0;    
 scrollStep := 0;
@@ -419,34 +421,84 @@ def drawUI() {
     drawText(160 - 70 - 2, 10, COLOR_LIGHT_BLUE, COLOR_DARK_BLUE, "CARRY:" + player["carry"] + "/4");
 }
 
+def drawTitle() {
+    drawRect(5, 5, 155, 195, COLOR_DARK_BLUE);
+    drawText(50, 20, COLOR_BROWN, COLOR_BLACK, "Airwolf");
+    drawText(14, 35, COLOR_MID_GRAY, COLOR_BLACK, "for the Benji4000");
+    drawText(25, 160, COLOR_MID_GRAY, COLOR_BLACK, "SPACE to start");
+    drawText(14, 175, COLOR_DARK_GRAY, COLOR_BLACK, "2020 (c) by Gabor");
+    player["x"] := 80;
+    player["y"] := 100;
+    player["dir"] := -1;
+    drawPlayerHealthy();
+    if(isKeyDown(KeySpace)) {
+        player["x"] := 30 * GROUND_STEP;
+        player["y"] := 100;
+        player["dir"] := 0;
+        title := false;
+        while(isKeyDown(KeySpace)) {
+        }
+    }
+}
+
+def drawInfo() {
+    drawRect(5, 5, 155, 195, COLOR_DARK_BLUE);
+    drawText(50, 20, COLOR_BROWN, COLOR_BLACK, "Airwolf");
+    drawText(14, 45, COLOR_MID_GRAY, COLOR_BLACK, "Rescue soldiers");
+    drawText(14, 55, COLOR_MID_GRAY, COLOR_BLACK, "stranded behind");
+    drawText(14, 65, COLOR_MID_GRAY, COLOR_BLACK, "enemy lines.");
+
+    drawText(14, 85, COLOR_MID_GRAY, COLOR_BLACK, "Watch that you");
+    drawText(14, 95, COLOR_MID_GRAY, COLOR_BLACK, "don't run out");
+    drawText(14, 105, COLOR_MID_GRAY, COLOR_BLACK, "of fuel.");
+
+    drawText(14, 125, COLOR_MID_GRAY, COLOR_BLACK, "Good luck! Press");
+    drawText(14, 135, COLOR_MID_GRAY, COLOR_BLACK, "SPACE to begin");
+    if(isKeyDown(KeySpace)) {
+        player["x"] := 30 * GROUND_STEP;
+        player["y"] := 100;
+        player["dir"] := 0;
+        setBackground(COLOR_DARK_BLUE);
+        info := false;
+    }
+}
+
 def main() {
     setVideoMode(2);
-    setBackground(COLOR_DARK_BLUE);
+    setBackground(COLOR_BLACK);
     initGround();
     
     while(1=1) {
         clearVideo();
-        if(player["lives"] > 0) {        
-            if(player["saved"] < len(soldiers)) {
-                handleInput();
-                movePlayer();
-                moveSoldiers();
-                drawGround();
-                drawPlayer();
-                drawUI();
+        if(title) {
+            drawTitle();
+        } else {
+            if(info) {
+                drawInfo();
             } else {
-                fillRect(40, 60, 120, 140, COLOR_GREEN);
-                drawText(45, 87, COLOR_BLACK, COLOR_GREEN, "Congrats!");
-                if(player["killed"] = 0) {
-                    drawText(45, 97, COLOR_BLACK, COLOR_GREEN, "Game Won!");
+                if(player["lives"] > 0) {        
+                    if(player["saved"] < len(soldiers)) {
+                        handleInput();
+                        movePlayer();
+                        moveSoldiers();
+                        drawGround();
+                        drawPlayer();
+                        drawUI();
+                    } else {
+                        fillRect(40, 60, 120, 140, COLOR_GREEN);
+                        drawText(45, 87, COLOR_BLACK, COLOR_GREEN, "Congrats!");
+                        if(player["killed"] = 0) {
+                            drawText(45, 97, COLOR_BLACK, COLOR_GREEN, "Game Won!");
+                        } else {
+                            drawText(45, 97, COLOR_BLACK, COLOR_GREEN, "Killed: " + player["killed"]);
+                            drawText(45, 107, COLOR_BLACK, COLOR_GREEN, "Saved: " + player["saved"]);
+                        }
+                    }
                 } else {
-                    drawText(45, 97, COLOR_BLACK, COLOR_GREEN, "Killed: " + player["killed"]);
-                    drawText(45, 107, COLOR_BLACK, COLOR_GREEN, "Saved: " + player["saved"]);
+                    fillRect(40, 60, 120, 140, COLOR_YELLOW);
+                    drawText(45, 94, COLOR_BLACK, COLOR_YELLOW, "Game Over");
                 }
             }
-        } else {
-            fillRect(40, 60, 120, 140, COLOR_YELLOW);
-            drawText(45, 94, COLOR_BLACK, COLOR_YELLOW, "Game Over");
         }
         updateVideo();
     }
