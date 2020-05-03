@@ -36,7 +36,9 @@ player := {
     "killed": 0
 };
 title := true;
-info := true;
+info := false;
+gameOn := false;
+death := false;
 ground := [];
 groundIndex := 0;    
 scrollStep := 0;
@@ -527,6 +529,7 @@ def drawTitle() {
         player["y"] := 100;
         player["dir"] := 0;
         title := false;
+        info := true;
         while(isKeyDown(KeySpace)) {
         }
     }
@@ -550,24 +553,52 @@ def drawInfo() {
         player["dir"] := 0;
         setBackground(COLOR_DARK_BLUE);
         info := false;
+        gameOn := true;
+        while(isKeyDown(KeySpace)) {
+        }
+    }
+}
+
+def drawDeath() {
+    setBackground(COLOR_BLACK);
+    drawText(45, 87, COLOR_RED, COLOR_BLACK, "You Died!");
+    if(isKeyDown(KeySpace)) {
+        return 0;
+    }
+    return 1;
+}
+
+def handleGame() {
+    movePlayer();
+    drawGround();
+    drawPlayer();
+    if(isKeyDown(KeySpace)) {
+        gameOn := false;
+        death := true;
+        while(isKeyDown(KeySpace)) {
+        }
     }
 }
 
 def main() {
     setVideoMode(2);
     setBackground(COLOR_BLACK);
+    initGround();
     
-    while(1=1) {
+    on := 1;
+    while(on=1) {
         clearVideo();
         if(title) {
             drawTitle();
-        } else {
-            if(info) {
-                drawInfo();
-            } else {
-                setBackground(COLOR_BLACK);
-                drawText(45, 87, COLOR_RED, COLOR_BLACK, "You Died!");
-            }
+        }
+        if(info) {
+            drawInfo();
+        }
+        if(gameOn) {
+            handleGame();
+        }
+        if (death) {
+            on := drawDeath();
         }
         updateVideo();
     }
