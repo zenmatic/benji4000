@@ -85,12 +85,6 @@ def handleInput() {
             turnDir := 0;
         }
     }
-    if(isKeyDown(KeyUp) && player["y"] > 10 && player["fuel"] > 0) {
-        player["y"] := player["y"] - SPEED_Y;
-    }
-    if(isKeyDown(KeyDown)) {
-        player["y"] := player["y"] + SPEED_Y;
-    }
 
     if(getTicks() > player["dirchange"]) {
         if(turnDir = -1 && player["dir"] > -1) {
@@ -501,7 +495,7 @@ def drawUI() {
 
 def drawTitle() {
     drawRect(5, 5, 155, 195, COLOR_DARK_BLUE);
-    drawText(50, 20, COLOR_BROWN, COLOR_BLACK, "Acid Rain!");
+    drawText(40, 20, COLOR_BROWN, COLOR_BLACK, "Acid Rain!");
     drawText(14, 45, COLOR_MID_GRAY, COLOR_BLACK, "for the Benji4000");
     drawText(25, 160, COLOR_MID_GRAY, COLOR_BLACK, "SPACE to start");
     drawText(14, 175, COLOR_DARK_GRAY, COLOR_BLACK, "2020 (c) by Matt");
@@ -537,15 +531,14 @@ def drawTitle() {
 
 def drawInfo() {
     drawRect(5, 5, 155, 195, COLOR_DARK_BLUE);
-    drawText(50, 20, COLOR_BROWN, COLOR_BLACK, "Acid Rain!");
-    drawText(14, 45, COLOR_MID_GRAY, COLOR_BLACK, "You find yourself");
-    drawText(14, 55, COLOR_MID_GRAY, COLOR_BLACK, "deep behind enemy");
-    drawText(14, 65, COLOR_MID_GRAY, COLOR_BLACK, "lines in Soviet");
-    drawText(14, 75, COLOR_MID_GRAY, COLOR_BLACK, "Siberia. You look");
-    drawText(14, 85, COLOR_MID_GRAY, COLOR_BLACK, "above you and");
-    drawText(14, 95, COLOR_MID_GRAY, COLOR_BLACK, "see... Acid Rain!");
+    drawText(14, 25, COLOR_MID_GRAY, COLOR_BLACK, "You find yourself");
+    drawText(14, 35, COLOR_MID_GRAY, COLOR_BLACK, "deep behind enemy");
+    drawText(14, 45, COLOR_MID_GRAY, COLOR_BLACK, "lines in Soviet");
+    drawText(14, 55, COLOR_MID_GRAY, COLOR_BLACK, "Siberia. You look");
+    drawText(14, 65, COLOR_MID_GRAY, COLOR_BLACK, "above you and");
+    drawText(14, 75, COLOR_MID_GRAY, COLOR_BLACK, "see... Acid Rain!");
 
-    drawText(14, 125, COLOR_MID_GRAY, COLOR_BLACK, "Stay dry! Press");
+    drawText(14, 105, COLOR_RED, COLOR_BLACK, "Stay dry or die!");
     drawText(14, 135, COLOR_MID_GRAY, COLOR_BLACK, "SPACE to begin");
     if(isKeyDown(KeySpace)) {
         player["x"] := 30 * GROUND_STEP;
