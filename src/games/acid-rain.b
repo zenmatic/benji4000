@@ -1,6 +1,7 @@
 const GROUND_STEP = 4;
 const SPEED = 0.01;
-const SPEED_FUEL = 0.05; const SPEED_FUEL_DOWN = 0.2;
+const SPEED_FUEL = 0.05;
+const SPEED_FUEL_DOWN = 0.2;
 const SPEED_Y = 0.05;
 const WAIVE_SPEED = 0.15;
 const GRAVITY_SPEED = 0.02;
@@ -12,7 +13,7 @@ const HIT_GROUND = 1;
 const HIT_PAD = 2;
 const PLAYER_COLOR = COLOR_TAN;
 
-const DROP_SPEED = 0.5;
+const DROP_SPEED = .8;
 
 # todo: can't place comments inside map literal
 player := {
@@ -30,6 +31,7 @@ title := true;
 info := false;
 gameOn := false;
 death := false;
+deathTimer := 0;
 ground := [];
 groundIndex := 0;    
 scrollStep := 0;
@@ -126,15 +128,13 @@ def updateAcidRain(drops) {
         }
         j := j + 1;
     }
-    return drops;
 }
 
 def drawAcidRain(drops) {
     if(getTicks() > dropTimer) {
-         drops := updateAcidRain(drops);
+         updateAcidRain(drops);
          dropTimer := getTicks() + DROP_SPEED;
     }
-    step := 20;
     i := 0;
     while(i < len(drops)) {
         j := 0;
@@ -168,6 +168,57 @@ def drawSoldier(index, x, y) {
 
 def drawPlayerHealthy() {
     drawSoldier(0, player["x"], player["y"]);
+}
+
+def testCollision(drops) {
+    i := len(drops) - 1;
+    j := 0;
+    max := 40;
+    while(j < len(drops[i])) {
+        if(drops[i][j] = 1) {
+            startx := (j + 1) * 20 + 10;
+            starty := (i + 1) * 20 + 65;
+
+            if (player["x"] > startx) {
+                distx := player["x"] - startx;
+            } else {
+                distx := startx - player["x"];
+            }
+            if (distx <= 10) {
+                return true;
+            }
+        }
+        j := j + 1;
+    }
+    return false;
+}
+
+def drawPlayerExplode() {
+    i := 0;
+    while(i < 10) {
+        if(random() > 0.75) {
+            color := COLOR_YELLOW;
+        } else {
+            color := COLOR_RED;
+        }
+        fillCircle(player["x"] - 5 + (random() * 10), player["y"] - 5 + (random() * 10), random() * 10 + 3, color);
+        i := i + 1;
+    }
+}
+
+def drawPlayer(drops) {
+    if (testCollision(drops)) {
+        player["explode"] := 1;
+        drawPlayerExplode();
+        death := true;
+        deathTimer := getTicks() + 4;
+        return false;
+    }
+    if (death) {
+        drawPlayerExplode();
+    } else {
+        drawPlayerHealthy();
+    }
 }
 
 def drawGround() {
@@ -261,6 +312,10 @@ def handleInput() {
 
 def movePlayer() {
 
+    if (player["explode"] > 0) {
+        return false;
+    }
+
     if(player["dir"] != 0 && getTicks() > player["move"]) {
         player["move"] := getTicks() + SPEED;
 
@@ -275,7 +330,7 @@ def movePlayer() {
         }
 
         if(handled = false) {
-            if(player["x"] < 160 && player["x"] > 0) {
+            if(player["x"] < 130 && player["x"] > 20) {
                 player["x"] := player["x"] + player["dir"];
             }
         }
@@ -289,8 +344,11 @@ def handleGame() {
     movePlayer();
     drawAcidRain(gameDrops);
     drawClouds();
-    drawPlayerHealthy();
+    drawPlayer(gameDrops);
     drawUI();
+    if (death = true && getTicks() > deathTimer) {
+        gameOn := false;
+    }
     if(isKeyDown(KeySpace)) {
         gameOn := false;
         death := true;
