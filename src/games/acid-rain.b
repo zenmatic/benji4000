@@ -49,12 +49,39 @@ waiveTimer := 0;
 waiveIndex := 0;
 
 dropTimer := 0;
-drops := [
+titleDrops := [
     [ 0, 0, 0, 0, 0, 0],
     [ 0, 0, 0, 0, 0, 0],
     [ 0, 0, 0, 0, 0, 0],
     [ 0, 0, 0, 0, 0, 0]
 ];
+
+gameDrops := [
+    [ 0, 0, 0, 0, 0, 0],
+    [ 0, 0, 0, 0, 0, 0],
+    [ 0, 0, 0, 0, 0, 0],
+    [ 0, 0, 0, 0, 0, 0],
+    [ 0, 0, 0, 0, 0, 0],
+    [ 0, 0, 0, 0, 0, 0]
+];
+
+def drawClouds() {
+    i := 0;
+    x := 15;
+    y1 := 20;
+    y2 := 40;
+    while(i < 10) {
+        if(random() > 0.75) {
+            color := COLOR_MID_GRAY;
+        } else {
+            color := COLOR_WHITE;
+        }
+        fillCircle(x - 5 + (random() * 10), y1 - 5 + (random() * 10), random() * 10 + 3, color);
+        fillCircle(x - 5 + (random() * 10), y2 - 5 + (random() * 10), random() * 10 + 3, color);
+        i := i + 1;
+        x := x + (random() * 10) + 10;
+    }
+}
 
 def drawAcidDrop(x, y) {
      color := COLOR_GREEN;
@@ -70,7 +97,7 @@ def drawAcidDrop(x, y) {
      drawLine(x-2, y+6, x+1, y+6, color);
 }
 
-def updateAcidRain() {
+def updateAcidRain(drops) {
     maxrows := len(drops) - 1;
     i := maxrows;
     # move all drops down a row, starting from the bottom
@@ -99,11 +126,12 @@ def updateAcidRain() {
         }
         j := j + 1;
     }
+    return drops;
 }
 
-def drawAcidRain() {
+def drawAcidRain(drops) {
     if(getTicks() > dropTimer) {
-         updateAcidRain();
+         drops := updateAcidRain(drops);
          dropTimer := getTicks() + DROP_SPEED;
     }
     step := 20;
@@ -161,7 +189,7 @@ def drawTitle() {
     drawText(25, 160, COLOR_MID_GRAY, COLOR_BLACK, "SPACE to start");
     drawText(14, 175, COLOR_DARK_GRAY, COLOR_BLACK, "2020 (c) by Matt");
 
-    drawAcidRain();
+    drawAcidRain(titleDrops);
     if(isKeyDown(KeySpace)) {
         title := false;
         info := true;
@@ -259,7 +287,8 @@ def handleGame() {
     setBackground(COLOR_DARK_BLUE);
     drawGround();
     movePlayer();
-    drawAcidRain();
+    drawAcidRain(gameDrops);
+    drawClouds();
     drawPlayerHealthy();
     drawUI();
     if(isKeyDown(KeySpace)) {
