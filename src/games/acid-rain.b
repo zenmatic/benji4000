@@ -91,9 +91,11 @@ def updateAcidRain() {
     }
 
     j := 0;
-    while(j < len(drops)) {
-        if (random() > 0.8) {
-            drops[0][j] := 1;
+    while(j < len(drops[0])) {
+        if (random() > 0.6) {
+            if (drops[1][j] = 0 && drops[2][j] = 0) {
+                drops[0][j] := 1;
+            }
         }
         j := j + 1;
     }
