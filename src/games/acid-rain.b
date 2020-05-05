@@ -1,4 +1,3 @@
-const ROTOR = [ 10, 7, 5, 3 ];
 const GROUND_STEP = 4;
 const SPEED = 0.01;
 const SPEED_FUEL = 0.05; const SPEED_FUEL_DOWN = 0.2;
@@ -19,9 +18,10 @@ const DROP_SPEED = 0.5;
 player := {
     "x": 80,
     "y": 190,
+    "dir": 0,
+    "dirchange": 0,
     "switch": 0,
     "move": 0,
-    "moveY": 0,
     "explode": 0,
     "lives": 5,
     "gravity_enabled": true
@@ -57,19 +57,17 @@ drops := [
 ];
 
 def drawAcidDrop(x, y) {
-    i := 0;
-    while(i < 10) {
-        if(random() > 0.5) {
-            #color := COLOR_LIGHT_BLUE;
-            color := COLOR_GREEN;
-        } else {
-            #color := COLOR_WHITE;
-            #color := COLOR_DARK_BLUE;
-            color := COLOR_YELLOW;
-        }
-        fillCircle(x - 4 + (random() * 10), y - 4 + (random() * 10), random() * 1 + 1, color);
-        i := i + 1;
-    }
+     color := COLOR_GREEN;
+     drawLine(x+2, y, x+2, y-6, color);
+     drawLine(x+1, y, x+1, y-8, color);
+     drawLine(x, y, x, y-10, color);
+     drawLine(x-1, y, x-1, y-12, color);
+     drawLine(x-2, y, x-2, y-10, color);
+     drawLine(x-3, y, x-3, y-8, color);
+     drawLine(x-4, y, x-4, y-6, color);
+     fillCircle(x, y, 5, color);
+     drawLine(x-3, y+5, x+2, y+5, color);
+     drawLine(x-2, y+6, x+1, y+6, color);
 }
 
 def updateAcidRain() {
@@ -140,10 +138,6 @@ def drawSoldier(index, x, y) {
 
 def drawPlayerHealthy() {
     drawSoldier(0, player["x"], player["y"]);
-    #fillCircle(player["x"], player["y"], 5, PLAYER_COLOR);
-    #fillRect(player["x"]-3, player["y"]-2, player["x"]+3, player["y"], COLOR_WHITE);
-    #fillRect(player["x"]-1, player["y"]-10, player["x"]+1, player["y"], PLAYER_COLOR);
-    #drawText(20,20, COLOR_LIGHT_BLUE, COLOR_DARK_BLUE, player["x"]+":"+player["y"]);
 }
 
 def drawGround() {
@@ -202,10 +196,68 @@ def drawDeath() {
     return 1;
 }
 
+def handleInput() {
+    if(player["explode"] > 0) {
+        # todo: return must always return a value...
+        return false;
+    }
+
+    if(isKeyDown(KeyLeft)) {
+        if(turnDir != -1) {
+            player["dirchange"] := 0;
+        }
+        turnDir := -1;
+    } else {
+        if(isKeyDown(KeyRight)) {
+            if(turnDir != 1) {
+                player["dirchange"] := 0;
+            }
+            turnDir := 1;
+        } else {
+            turnDir := 0;
+        }
+    }
+
+    if(getTicks() > player["dirchange"]) {
+        if(turnDir = -1 && player["dir"] > -1) {
+            player["dir"] := player["dir"] - 1;
+        }
+        if(turnDir = 1 &&  player["dir"] < 1) {
+            player["dir"] := player["dir"] + 1;
+        }
+        player["dirchange"] := getTicks() + 0.15;
+    }
+}
+
+def movePlayer() {
+
+    if(player["dir"] != 0 && getTicks() > player["move"]) {
+        player["move"] := getTicks() + SPEED;
+
+        handled := false;
+        if(player["dir"] = 1 && player["x"] < 80) {
+            player["x"] := player["x"] + 1;
+            handled := true;
+        }
+        if(player["dir"] = -1 && player["x"] > 80) {
+            player["x"] := player["x"] - 1;
+            handled := true;
+        }
+
+        if(handled = false) {
+            if(player["x"] < 160 && player["x"] > 0) {
+                player["x"] := player["x"] + player["dir"];
+            }
+        }
+    }    
+}
+
 def handleGame() {
+    handleInput();
     setBackground(COLOR_DARK_BLUE);
-    #movePlayer();
     drawGround();
+    movePlayer();
+    drawAcidRain();
     drawPlayerHealthy();
     drawUI();
     if(isKeyDown(KeySpace)) {
